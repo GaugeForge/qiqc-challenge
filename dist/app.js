@@ -1,9 +1,3 @@
-const menu=document.querySelector('#menu-toggle');
-const nav=document.querySelector('#navigation');
-function setMenu(open){menu.setAttribute('aria-expanded',String(open));menu.setAttribute('aria-label',open?'Close navigation':'Open navigation');menu.title=open?'Close navigation':'Open navigation';menu.querySelector('img').src=open?'assets/x.svg':'assets/menu.svg';nav.classList.toggle('open',open);}
-menu.addEventListener('click',()=>setMenu(menu.getAttribute('aria-expanded')!=='true'));
-nav.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>setMenu(false)));
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu.getAttribute('aria-expanded')==='true'){setMenu(false);menu.focus();}});
 document.querySelector('#copy-code').addEventListener('click',async()=>{
  const status=document.querySelector('#copy-status');
  try{await navigator.clipboard.writeText(document.querySelector('#install-code').textContent);status.textContent='Commands copied.';}
@@ -67,12 +61,12 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
  function schedule(){if(frame!==null||!visible||document.hidden)return;last=null;frame=requestAnimationFrame(tick);}
  function resize(){
   // Use layout size: scroll scaling must not reallocate or resample the simulation.
-  const box={width:field.offsetWidth,height:field.offsetHeight};width=Math.min(1200,Math.max(400,Math.round(box.width)));height=Math.max(200,Math.round(width*box.height/box.width));
+  const box={width:canvas.offsetWidth,height:canvas.offsetHeight};width=Math.min(1200,Math.max(400,Math.round(box.width)));height=Math.max(200,Math.round(width*box.height/box.width));
   canvas.width=source.width=reveal.width=width;canvas.height=source.height=reveal.height=height;
   pixels=sourceCtx.createImageData(width,height);dirty=true;drawField();composite();schedule();
  }
  hero.addEventListener('pointermove',event=>{
-  const box=field.getBoundingClientRect();
+  const box=canvas.getBoundingClientRect();
   const px=(event.clientX-box.left)/box.width,py=(event.clientY-box.top)/box.height;
   const inside=px>=0&&px<=1&&py>=0&&py<=1;
   const captionBox=caption.getBoundingClientRect();
@@ -231,7 +225,7 @@ for(const title of document.querySelectorAll('#hero-title')){
  function resolve(hash){
   if(!hash||hash==='#')return null;
   let id;try{id=decodeURIComponent(hash.slice(1));}catch{return null;}
-  id=({'rules':'task','how-it-works':'evaluation'})[id]||id;
+  id=({'rules':'task','how-it-works':'task','evaluation':'task'})[id]||id;
   const target=document.getElementById(id);
   if(!target)return null;
   const heading=target.matches('.hero, .hero-stage')?target.querySelector('h1, h2'):target.matches('.section')?target.querySelector('.section-heading, .eyebrow, h2'):target;
@@ -278,9 +272,32 @@ for(const title of document.querySelectorAll('#hero-title')){
  window.addEventListener('hashchange',restore);
  updateHeader();new ResizeObserver(updateHeader).observe(header);
  const initialHash=location.hash;
+ const navigationType=performance.getEntriesByType('navigation')[0]?.type;
+ const isReload=navigationType==='reload';
+ const savedPosition=history.state?.qiqcScroll;
+ const canRestore=isReload&&savedPosition?.url===location.href&&Number.isFinite(savedPosition.y);
+ // The URL hash can be an old nav click, not the section currently being read.
+ // Save the actual position on departure without adding a history entry.
+ window.addEventListener('pagehide',()=>{
+  history.replaceState({...history.state,qiqcScroll:{url:location.href,x:window.scrollX,y:window.scrollY}},'');
+ });
+ let userMoved=false;
+ const cancelInitialRestore=()=>{userMoved=true;};
+ const inputEvents=['wheel','touchstart','pointerdown','keydown'];
+ inputEvents.forEach(type=>window.addEventListener(type,cancelInitialRestore,{passive:true,once:true}));
  const loaded=document.readyState==='complete'?Promise.resolve():new Promise(resolve=>window.addEventListener('load',resolve,{once:true}));
  Promise.all([loaded,document.fonts?document.fonts.ready:Promise.resolve()]).then(()=>{
-  if(initialHash&&location.hash===initialHash)queue(initialHash,{smooth:false});
+  // Let the hero's font-dependent height finish updating before restoring pixels.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+   inputEvents.forEach(type=>window.removeEventListener(type,cancelInitialRestore));
+   if(userMoved||location.hash!==initialHash)return;
+   if(canRestore){
+    window.scrollTo({left:savedPosition.x||0,top:savedPosition.y,behavior:'instant'});
+   }else if(!isReload&&navigationType!=='back_forward'&&initialHash){
+    queue(initialHash,{smooth:false});
+   }
+   // On reloads without a saved position, preserve the browser's native restoration.
+  }));
  });
 }
 
@@ -386,9 +403,17 @@ for(const title of document.querySelectorAll('#hero-title')){
   stage.style.setProperty('--field-mask-y',(42-20*progress)+'%');
   stage.style.setProperty('--wash-x',(50-26*progress)+'%');
   stage.style.setProperty('--wash-y',(42-17*progress)+'%');
-  geometry.forEach(({element,x,y,scale})=>{
+  geometry.forEach(({element,x,y,scale},index)=>{
    const remainder=1-progress;
-   element.style.transform=`translate(${x*remainder}px,${y*remainder}px) scale(${1+(scale-1)*remainder})`;
+   let tx=x*remainder,ty=y*remainder;
+   if(index>0&&index<lines.length){
+    // Separate the lines vertically before bringing the second line left.
+    const drop=ease(clamp(progress/.32));
+    const move=ease(clamp((progress-.32)/.68));
+    tx=x*(1-move);
+    ty=geometry[0].y*remainder-(geometry[0].y-y)*(1-drop);
+   }
+   element.style.transform=`translate(${tx}px,${ty}px) scale(${1+(scale-1)*remainder})`;
   });
   reveal(ease(clamp((progress-.28)/.72)));
   setOverviewReady(scrollProgress>=1);
@@ -413,20 +438,31 @@ for(const title of document.querySelectorAll('#hero-title')){
   stage.style.setProperty('--stage-height',(hero.offsetHeight+distance)+'px');
   const heroBox=hero.getBoundingClientRect();
   const availableWidth=window.innerWidth-Math.max(40,window.innerWidth*.084);
-  const titleScale=Math.max(1,Math.min(136,window.innerWidth*.084)/parseFloat(getComputedStyle(title).fontSize));
+  const titleScale=Math.max(1,Math.min(90,window.innerWidth*.05)/parseFloat(getComputedStyle(title).fontSize));
   const textScale=Math.max(1,Math.min(24,window.innerWidth*.0155)/parseFloat(getComputedStyle(intro[0]).fontSize));
   const sloganScale=Math.max(1,Math.min(40,window.innerWidth*.026)/parseFloat(getComputedStyle(slogan).fontSize));
   const boxes=items.map(element=>element.getBoundingClientRect());
-  const scales=items.map((element,index)=>Math.min(index<lines.length?titleScale:index<items.length-1?textScale:sloganScale,availableWidth/boxes[index].width));
-  const gaps=items.map((element,index)=>index===lines.length-1?30:index===items.length-2?26:0);
-  const total=boxes.reduce((height,box,index)=>height+box.height*scales[index]+gaps[index],0);
+  // The same two title lines share a row in the opening, then settle into P2.
+  const wordGap=parseFloat(getComputedStyle(title).fontSize)*.23;
+  const combinedWidth=boxes.slice(0,lines.length).reduce((sum,box)=>sum+box.width,0)+wordGap*(lines.length-1);
+  const headingScale=Math.min(titleScale,availableWidth/combinedWidth);
+  const scales=items.map((element,index)=>index<lines.length?headingScale:Math.min(index<items.length-1?textScale:sloganScale,availableWidth/boxes[index].width));
+  const headingHeight=Math.max(...boxes.slice(0,lines.length).map(box=>box.height))*headingScale;
+  const total=headingHeight+30+boxes.slice(lines.length).reduce((sum,box,index)=>sum+box.height*scales[index+lines.length],0)+26;
   const fit=Math.max(.1,Math.min(1,(viewport-48)/total));
   let y=Math.max(24,(viewport-total*fit)/2);
+  let titleX=(window.innerWidth-combinedWidth*headingScale*fit)/2;
   geometry=items.map((element,index)=>{
    const box=boxes[index],scale=scales[index]*fit;
-   const initialX=(window.innerWidth-box.width*scale)/2;
+   const initialX=index<lines.length?titleX:(window.innerWidth-box.width*scale)/2;
    const result={element,x:initialX-box.left,y:y-(box.top-heroBox.top),scale};
-   y+=(box.height*scales[index]+gaps[index])*fit;
+   if(index<lines.length){
+    titleX+=(box.width+wordGap)*scale;
+    if(index===lines.length-1)y+=(headingHeight+30)*fit;
+   }else{
+    y+=box.height*scale;
+    if(index===items.length-2)y+=26*fit;
+   }
    return result;
   });
   render();
@@ -440,47 +476,6 @@ for(const title of document.querySelectorAll('#hero-title')){
  new ResizeObserver(remeasure).observe(header);
  if(document.fonts)document.fonts.ready.then(remeasure);
  measure();
-}
-
-// Reference GFdemo1: optical movement on inner surfaces keeps hit areas and scroll geometry stable.
-{
- const motion=matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
- const selector='.hero-slogan mark, .basic-label, .timeline-event, .entry-timeline time, .entry-details h3, .prize-overview h3, .task-copy h3, .evaluation-columns h3, .section-heading h2';
- const items=[...document.querySelectorAll(selector)].map(target=>{
-  const surface=document.createElement('span');surface.className='ui-motion-surface';
-  while(target.firstChild)surface.append(target.firstChild);
-  target.append(surface);target.classList.add('ui-motion-target');return {target,surface};
- });
- let frame=null,selecting=false;
- const pending=new Map();
- function resetItem(item){pending.delete(item);item.target.classList.remove('is-tracking');item.surface.style.removeProperty('--ui-x');item.surface.style.removeProperty('--ui-y');}
- function reset(){if(frame!==null)cancelAnimationFrame(frame);frame=null;items.forEach(resetItem);}
- function render(){
-  frame=null;if(!motion.matches||selecting)return;
-  for(const [item,point] of pending){
-   const box=item.target.getBoundingClientRect();
-   const x=Math.max(-1,Math.min(1,(point.x-box.left)/box.width*2-1));
-   const y=Math.max(-1,Math.min(1,(point.y-box.top)/box.height*2-1));
-   item.surface.style.setProperty('--ui-x',(x*4)+'px');item.surface.style.setProperty('--ui-y',(y*2.4)+'px');
-   item.target.classList.add('is-tracking');
-  }
-  pending.clear();
- }
- items.forEach(item=>{
-  item.target.addEventListener('pointermove',event=>{
-   if(!motion.matches||selecting||event.buttons||event.pointerType==='touch')return;
-   pending.set(item,{x:event.clientX,y:event.clientY});if(frame===null)frame=requestAnimationFrame(render);
-  });
-  item.target.addEventListener('pointerleave',()=>resetItem(item));
-  item.target.addEventListener('pointercancel',()=>resetItem(item));
- });
- document.addEventListener('pointerdown',()=>{selecting=true;reset();});
- window.addEventListener('pointerup',()=>{selecting=false;});
- window.addEventListener('pointercancel',()=>{selecting=false;reset();});
- window.addEventListener('scroll',reset,{passive:true});
- window.addEventListener('blur',()=>{selecting=false;reset();});
- document.addEventListener('visibilitychange',()=>{if(document.hidden){selecting=false;reset();}});
- motion.addEventListener('change',reset);
 }
 
 // Native details remain keyboard-accessible while their answers expand and close gently.
