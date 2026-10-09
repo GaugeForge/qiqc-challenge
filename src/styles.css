@@ -185,7 +185,7 @@ body,.section,.rules-section,.flow-section,.partners-section,.participate-band,.
 .hero-stage.is-staged .hero-copy .title-line,.hero-stage.is-staged .intro-line,.hero-stage.is-staged .hero-slogan{transform-origin:0 0;will-change:transform}
 .hero-stage.is-staged .hero-copy{z-index:3}
 .hero-stage.is-staged .entry-basics{opacity:var(--details-reveal,0);transform:translateY(calc((1 - var(--details-reveal,0))*28px))}
-.hero-stage.is-staged .hero-field{opacity:1;transform-origin:top right;transform:scale(var(--field-scale-x,1),var(--field-scale-y,1));will-change:transform;mask-image:radial-gradient(ellipse 85% 83% at var(--field-mask-x,75%) var(--field-mask-y,22%),#000 28%,rgba(0,0,0,.86) 52%,transparent 88%);-webkit-mask-image:radial-gradient(ellipse 85% 83% at var(--field-mask-x,75%) var(--field-mask-y,22%),#000 28%,rgba(0,0,0,.86) 52%,transparent 88%)}
+.hero-stage.is-staged .hero-field{opacity:calc(.4 + .6 * var(--details-reveal,0));transform-origin:top right;transform:scale(var(--field-scale-x,1),var(--field-scale-y,1));will-change:transform;mask-image:radial-gradient(ellipse 85% 83% at var(--field-mask-x,75%) var(--field-mask-y,22%),#000 28%,rgba(0,0,0,.86) 52%,transparent 88%);-webkit-mask-image:radial-gradient(ellipse 85% 83% at var(--field-mask-x,75%) var(--field-mask-y,22%),#000 28%,rgba(0,0,0,.86) 52%,transparent 88%)}
 .hero-stage.is-staged .field-caption{filter:opacity(var(--details-reveal,0))}
 .hero-stage.is-staged .entry-basics[inert],.hero-stage.is-staged .field-caption[inert]{pointer-events:none}
 @media(prefers-reduced-motion:reduce){.hero-stage .title-line,.hero-stage .intro-line,.hero-stage .hero-slogan{will-change:auto}}
