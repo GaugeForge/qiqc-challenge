@@ -596,3 +596,13 @@ mark::selection,mark *::selection,
 
 /* The GaugeForge wordmark is the deliberate bold exception. */
 .brand{font-family:'Helvetica Neue',Helvetica,sans-serif;font-weight:700}
+
+/* Editorial entrances from Task onward; layout and anchor geometry stay fixed. */
+@media(prefers-reduced-motion:no-preference){
+ .scroll-reveal{opacity:0;translate:0 18px;pointer-events:none;transition:opacity .65s ease,translate .85s cubic-bezier(.22,1,.36,1);transition-delay:var(--reveal-delay,0ms)}
+ .scroll-reveal.is-visible{opacity:1;translate:0 0;pointer-events:auto}
+ .scroll-reveal.reveal-instant{transition:none;opacity:1;translate:none;pointer-events:auto}
+}
+@media print{
+ .scroll-reveal{opacity:1!important;translate:none!important;transition:none!important}
+}

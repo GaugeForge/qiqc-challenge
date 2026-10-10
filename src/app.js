@@ -478,3 +478,56 @@ document.querySelectorAll('.faq details').forEach(details=>{
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});
  window.addEventListener('pageshow',update);
 }
+
+// Quiet, staggered entrances start at Task; the opening two screens keep their own motion.
+{
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ const selectors=[
+  '#task .section-heading', '#task .task-goal', '#task .task-copy>h3',
+  '#task .task-copy>p', '#task .task-examples>li', '#task .task-split',
+  '#task .task-step-hint', '#task .task-steps', '#task-panel>h4',
+  '#task-panel>p', '#task-panel>.task-schematic', '#task .research-line',
+  '#getting-started .section-heading>h2', '#getting-started .section-heading>p',
+  '#getting-started .terminal', '#getting-started>p:not([role="status"])',
+  '#getting-started>.actions', '#partners h2', '#partners .partner-content>p',
+  '#partners .actions', '#faq .section-heading', '#faq details',
+  '.participate-band h2', '.participate-band .contact', '.participate-band p',
+  '.footer-shell .site-footer>*'
+ ];
+ const blocks=[...document.querySelectorAll(selectors.join(','))];
+ let observer=null;
+ function show(element,delay=0,instant=false){
+  if(element.classList.contains('is-visible')&&!instant)return;
+  element.style.setProperty('--reveal-delay',delay+'ms');
+  if(instant)element.classList.add('reveal-instant');
+  element.classList.add('is-visible');
+  observer?.unobserve(element);
+ }
+ function showAll(){blocks.forEach(element=>show(element,0,true));observer?.disconnect();}
+ if(!reduced.matches&&'IntersectionObserver' in window){
+  observer=new IntersectionObserver(entries=>{
+   const visible=entries.filter(entry=>entry.isIntersecting)
+    .sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top||a.boundingClientRect.left-b.boundingClientRect.left);
+   visible.forEach((entry,index)=>show(entry.target,Math.min(index*55,220)));
+   // Fast anchor jumps should never leave previously passed content invisible.
+   entries.filter(entry=>!entry.isIntersecting&&entry.boundingClientRect.bottom<0)
+    .forEach(entry=>show(entry.target,0,true));
+  },{rootMargin:'0px 0px -5% 0px',threshold:0});
+  blocks.forEach(element=>{
+   element.classList.add('scroll-reveal');
+   if(element.getBoundingClientRect().bottom<=0)show(element,0,true);
+   else observer.observe(element);
+  });
+ }
+ document.addEventListener('focusin',event=>{
+  const block=event.target.closest('.scroll-reveal');
+  if(block)show(block,0,true);
+ });
+ // An intentional stage selection takes precedence over an entrance animation.
+ document.querySelector('.task-steps').addEventListener('click',()=>{
+  document.querySelectorAll('#task-panel .scroll-reveal').forEach(element=>show(element,0,true));
+ });
+ window.addEventListener('beforeprint',showAll);
+ window.addEventListener('pageshow',event=>{if(event.persisted)showAll();});
+ reduced.addEventListener('change',event=>{if(event.matches)showAll();});
+}
