@@ -11,7 +11,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&menu.getAttribute('
  const motion=matchMedia('(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)');
  const selector='.hero-slogan mark, .basic-label, .timeline-event, .entry-timeline time, .entry-details h3, .prize-overview h3, .task-copy h3, .section-heading h2';
  const items=[...document.querySelectorAll(selector)]
-  .filter(target=>!target.closest('.entry-who, .entry-how, .challenger-prize'))
+  .filter(target=>!target.closest('.entry-who, .entry-how, .prize-overview, .entry-timeline'))
   .map(target=>{
    const surface=document.createElement('span');surface.className='ui-motion-surface';
    while(target.firstChild)surface.append(target.firstChild);

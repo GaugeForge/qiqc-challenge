@@ -301,68 +301,6 @@ for(const title of document.querySelectorAll('#hero-title')){
  });
 }
 
-// Count only after the overview transition finishes and the amount is actually visible.
-{
- const numbers=[...document.querySelectorAll('.prize-number[data-amount]')];
- const stage=document.querySelector('.hero-stage');
- const header=document.querySelector('.site-header');
- const reduced=matchMedia('(prefers-reduced-motion: reduce)');
- const formatter=new Intl.NumberFormat('en-US');
- const states=new Map(numbers.map(number=>[number,{elapsed:0,last:null,frame:null,done:false}]));
- let checkFrame=null;
- function pause(state){
-  if(state.frame!==null)cancelAnimationFrame(state.frame);
-  state.frame=null;state.last=null;
- }
- function finish(number,state){
-  pause(state);state.done=true;
-  number.textContent=formatter.format(Number(number.dataset.amount));
-  observer.unobserve(number);
- }
- function isVisible(number){
-  if(document.hidden||stage.dataset.overviewReady!=='true'||number.closest('[inert]'))return false;
-  const box=number.getBoundingClientRect();
-  const top=header.getBoundingClientRect().bottom;
-  const visibleHeight=Math.max(0,Math.min(box.bottom,window.innerHeight)-Math.max(box.top,top));
-  return box.width>0&&box.height>0&&visibleHeight/box.height>=.75;
- }
- function tick(number,state,now){
-  state.frame=null;
-  if(!isVisible(number)){state.last=null;return;}
-  if(state.last!==null)state.elapsed+=Math.max(0,now-state.last);
-  state.last=now;
-  const progress=Math.min(1,state.elapsed/1700);
-  number.textContent=formatter.format(Math.round(Number(number.dataset.amount)*(1-Math.pow(1-progress,3))));
-  if(progress===1)finish(number,state);
-  else state.frame=requestAnimationFrame(time=>tick(number,state,time));
- }
- function check(){
-  checkFrame=null;
-  for(const [number,state] of states){
-   if(state.done)continue;
-   if(reduced.matches){finish(number,state);continue;}
-   if(!isVisible(number)){pause(state);continue;}
-   if(state.frame===null)state.frame=requestAnimationFrame(time=>tick(number,state,time));
-  }
- }
- function schedule(){if(checkFrame===null)checkFrame=requestAnimationFrame(check);}
- const observer=new IntersectionObserver(schedule,{threshold:[0,.75,1]});
- numbers.forEach(number=>{
-  if(reduced.matches)finish(number,states.get(number));
-  else{number.textContent='0';observer.observe(number);}
- });
- document.addEventListener('hero:overviewchange',schedule);
- window.addEventListener('scroll',schedule,{passive:true});
- window.addEventListener('resize',schedule,{passive:true});
- window.addEventListener('pageshow',schedule);
- reduced.addEventListener('change',schedule);
- document.addEventListener('visibilitychange',()=>{
-  if(document.hidden)states.forEach(pause);
-  else schedule();
- });
- schedule();
-}
-
 // Move the original text into place through a sticky scroll stage; never clone it.
 {
  const stage=document.querySelector('.hero-stage');
@@ -510,20 +448,11 @@ document.querySelectorAll('.faq details').forEach(details=>{
  const status=document.querySelector('#timeline-status');
  const rail=document.querySelector('.timeline-rail');
  const marker=document.querySelector('.timeline-current');
- const tooltip=document.querySelector('#timeline-tooltip');
  const day=86400000;
  const start=Date.parse(bar.dataset.start+'T00:00:00Z');
  const deadline=Date.parse(bar.dataset.deadline+'T00:00:00Z');
  const end=Date.parse(bar.dataset.end+'T00:00:00Z');
  let lastDate='';
- function positionTooltip(){
-  const bounds=rail.closest('.timeline-body').getBoundingClientRect();
-  const markerBounds=marker.getBoundingClientRect();
-  const width=tooltip.getBoundingClientRect().width;
-  const centeredLeft=markerBounds.left+markerBounds.width/2-width/2;
-  const left=Math.max(bounds.left,Math.min(centeredLeft,bounds.right-width));
-  tooltip.style.setProperty('--tooltip-shift',(left-centeredLeft)+'px');
- }
  function update(){
   const date=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
   if(date===lastDate)return;lastDate=date;
@@ -540,22 +469,10 @@ document.querySelectorAll('.faq details').forEach(details=>{
   else label='Timeline complete';
   rail.style.setProperty('--date-progress',String(progress));
   marker.dataset.edge=progress<=.1?'start':progress>=.9?'end':'middle';
-  tooltip.textContent=today<start?'The competition has not started yet.'
-   :today===start?'The competition begins today.'
-   :today<deadline?'The competition is in progress.'
-   :today===deadline?'Submission deadline is today.'
-   :today<end?'Submissions closed. Demo Day is next.'
-   :today===end?'Today is Demo Day.'
-   :'The competition timeline is complete.';
   bar.setAttribute('aria-valuenow',String(percent));
   bar.setAttribute('aria-valuetext',percent+'% · '+label+' · '+date+' (UTC+8)');
-  bar.title='As of '+date+' (UTC+8). Calendar-date progress; exact event times to be announced.';
-  status.textContent=label;positionTooltip();
+  status.textContent=label;
  }
- marker.addEventListener('pointerenter',()=>{positionTooltip();marker.classList.remove('tooltip-dismissed');});
- marker.addEventListener('focusin',()=>{positionTooltip();marker.classList.remove('tooltip-dismissed');});
- window.addEventListener('resize',positionTooltip,{passive:true});
- document.addEventListener('keydown',event=>{if(event.key==='Escape')marker.classList.add('tooltip-dismissed');});
  update();
  setInterval(()=>{if(!document.hidden)update();},60000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)update();});
