@@ -15,7 +15,7 @@
     "benchmark": "https://gauge-forge.com/qiqc",
     "repository": "https://github.com/GaugeForge/Quantum-Harbor",
     "paper": "https://arxiv.org/abs/2609.17439",
-    "registration": null,
+    "registration": "https://kjpjfpccp7ku.jp.larksuite.com/share/base/form/shrjpZPLR75wvuFSSLTKWdGdsGb",
     "website": "https://challenge.r-era.ai",
     "qr": "https://gauge-forge.com/qiqc",
     "qrPurpose": "Benchmark information, not registration"
@@ -37,8 +37,8 @@
       "status": "planned"
     },
     "registration": {
-      "label": "To be announced",
-      "status": "pending"
+      "label": "Open",
+      "status": "confirmed"
     },
     "deadline": {
       "date": "2026-11-10",
