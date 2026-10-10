@@ -66,6 +66,9 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
   pixels=sourceCtx.createImageData(width,height);dirty=true;drawField();composite();schedule();
  }
  hero.addEventListener('pointermove',event=>{
+  if(event.pointerType==='touch'||!matchMedia('(min-width:701px) and (hover:hover) and (pointer:fine)').matches){
+   hovered=false;hero.classList.remove('field-caption-visible');schedule();return;
+  }
   const box=canvas.getBoundingClientRect();
   const px=(event.clientX-box.left)/box.width,py=(event.clientY-box.top)/box.height;
   const inside=px>=0&&px<=1&&py>=0&&py<=1;
@@ -77,7 +80,9 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
   // The broad page wash and glyph-shaped text shadows preserve readability.
   hovered=inside&&!event.target.closest('.protected');schedule();
  });
- hero.addEventListener('pointerleave',()=>{hovered=false;hero.classList.remove('field-caption-visible');schedule();});
+ function clearFieldHover(){hovered=false;hero.classList.remove('field-caption-visible');schedule();}
+ hero.addEventListener('pointerleave',clearFieldHover);
+ window.addEventListener('scroll',clearFieldHover,{passive:true});
  function syncPlay(){play.textContent=playing?'Ⅱ  Pause motion':'▷  Play motion';play.setAttribute('aria-label',playing?'Pause background animation':'Play background animation');schedule();}
  play.addEventListener('click',()=>{playing=!playing;syncPlay();});
  reduced.addEventListener('change',event=>{if(event.matches){playing=false;syncPlay();}});
@@ -460,7 +465,7 @@ document.querySelectorAll('.faq details').forEach(details=>{
   const progress=Math.max(0,Math.min(1,(today-start)/(end-start)));
   const percent=Math.round(progress*100);
   let label;
-  if(today<start){const days=Math.round((start-today)/day);label='Starts in '+days+' '+(days===1?'day':'days');}
+  if(today<start){const days=Math.round((start-today)/day);label='Competition Starts in '+days+' '+(days===1?'day':'days');}
   else if(today===start)label='Competition begins today';
   else if(today<deadline)label='Competition dates';
   else if(today===deadline)label='Submission deadline today';

@@ -31,7 +31,11 @@
 
 /* The annotation follows the corner illustration, with a quiet resting state. */
 .field-caption{position:absolute;top:calc(clamp(280px,30vw,430px) + 8px);right:clamp(24px,4.4vw,64px);width:min(365px,calc(60vw - 64px));z-index:2;color:#395e4b;opacity:.16;transition:opacity .35s ease;font:9px/1.7 var(--font-site);letter-spacing:.1px}
-.field-caption p{font-size:10px;letter-spacing:1.5px;margin:0 0 4px}.field-caption>span{display:block}.field-caption>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:3px}.field-caption button{border:0;background:transparent;color:inherit;font:9px var(--font-site);padding:7px 0 7px 7px;white-space:nowrap;min-height:32px}.hero.field-caption-visible .field-caption,.field-caption:hover,.field-caption:focus-within{opacity:1}
+.field-caption p{font-size:10px;letter-spacing:1.5px;margin:0 0 4px}.field-caption>span{display:block}.field-caption>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:3px}.field-caption button{border:0;background:transparent;color:inherit;font:9px var(--font-site);padding:7px 0 7px 7px;white-space:nowrap;min-height:32px}/* Touch scrolling must not latch the scientific caption into its hover state. */
+@media(min-width:701px) and (hover:hover) and (pointer:fine){
+ .hero.field-caption-visible .field-caption,.field-caption:hover{opacity:1}
+}
+.field-caption:has(:focus-visible){opacity:1}
 @media(prefers-reduced-motion:reduce){.field-caption{transition:none}}
 
 /* Information order: identity → invitation → one participation area → rules. */
@@ -605,4 +609,70 @@ mark::selection,mark *::selection,
 }
 @media print{
  .scroll-reveal{opacity:1!important;translate:none!important;transition:none!important}
+}
+
+/* Keep the registration label and arrow together as one centered group. */
+.hero .register-now.primary{justify-content:center;text-align:center;gap:12px}
+.hero .register-now.primary>.icon{position:static;flex-shrink:0;margin:0}
+
+/* P2 reference: awards and dates on the left, a quiet action stack on the right. */
+.hero .entry-basics{display:grid;grid-template-columns:minmax(0,1fr);gap:32px;margin-top:38px;padding-top:0}
+.hero .entry-details{display:contents}
+.hero .entry-details::after{content:none}
+.hero .entry-basics .prize-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;grid-column:1;grid-row:1;margin:0;padding:0}
+.hero .prize-overview article{display:block;padding:0}
+.hero .prize-overview .challenger-prize{order:-1;padding:0}
+.hero .prize-overview article>p{display:none}
+.hero .entry-basics .prize-overview .rule-label{margin:0 0 12px}
+.hero .entry-basics>.entry-timeline{display:block;grid-column:1;grid-row:2;width:100%;margin:0;padding:0!important}
+.hero .entry-timeline>.basic-label{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px 24px;padding:0;margin:0 0 28px}
+.hero .entry-timeline>.basic-label>small{font-size:11px;letter-spacing:0;margin:0}
+.hero .entry-register{position:static;grid-column:1;grid-row:3;width:100%;max-width:320px;justify-self:center;align-self:end;padding:0}
+.hero .timeline-body{padding-top:8px}
+@media(min-width:1051px){
+ .hero-inner.wrap{padding:clamp(68px,12svh,150px) 4.2vw clamp(48px,7svh,88px);min-height:calc(100svh - var(--nav-height,78px))}
+ .hero-copy{width:45%;max-width:none}
+ .hero #hero-title{font-size:clamp(42px,4.44445vw,88px);margin-bottom:clamp(30px,3.6vw,64px)}
+ .hero .event-intro{font-size:clamp(14px,1.12vw,20px);margin-bottom:clamp(28px,3vw,54px);max-width:none}
+ .hero .hero-slogan{font-size:clamp(24px,2vw,40px)}
+ .hero-field,.rabi-axes{width:53.3vw;height:clamp(280px,40svh,500px)}
+ .hero{--overview-action-width:clamp(220px,15vw,280px)}
+ .field-caption{left:calc(72.9vw - var(--overview-action-width)/2);right:auto;top:calc(clamp(280px,40svh,500px) + 8px);width:min(365px,calc(100vw - (72.9vw - var(--overview-action-width)/2) - 4.2vw))}
+ .hero .entry-basics{grid-template-columns:minmax(0,42%) minmax(0,1fr);column-gap:8%;row-gap:clamp(40px,6svh,76px);margin-top:clamp(42px,7svh,92px);padding:0}
+ .hero .entry-basics .prize-overview{gap:30px}
+ .hero .entry-basics .basic-label,.hero .entry-basics .prize-overview .rule-label{font-size:clamp(13px,1.04vw,19px)}
+ .hero .prize-overview article h3{font-size:clamp(26px,2.08vw,40px);line-height:1.2;margin:0}
+ .hero .entry-register{position:relative;inset:auto;top:18px;grid-column:2;grid-row:1/3;width:var(--overview-action-width);max-width:none;justify-self:center;align-self:start}
+ .hero .register-now{min-height:clamp(72px,5vw,100px)}
+ .hero .entry-basics>.entry-timeline{grid-column:1;grid-row:2;width:100%}
+ .hero .entry-timeline li>.timeline-event{font-size:clamp(12px,.98vw,18px)}
+}
+@media(max-width:700px){
+ .hero .entry-basics .prize-overview .rule-label{font-size:11px;letter-spacing:.7px}
+ .hero .prize-overview h3{font-size:24px;letter-spacing:-.5px}
+ .hero .entry-timeline>.basic-label{gap:8px 16px}
+}
+@media(min-width:1051px) and (max-height:800px){
+ .hero-inner.wrap{padding-top:60px;padding-bottom:40px}
+ .hero .entry-basics{margin-top:36px;row-gap:36px}
+ .hero #hero-title{margin-bottom:32px}
+ .hero .event-intro{margin-bottom:28px}
+}
+
+/* Compact actions and the reference's two-line timeline header/rail. */
+.hero .register-now{min-height:54px;padding:11px 16px;font-size:18px}
+.hero .register-now.rules-pdf{min-height:52px;padding:11px 12px;font-size:16px;border:.5px solid #9ab0a5}
+.hero .entry-register{gap:8px}
+.hero .entry-timeline>.basic-label{gap:12px 30px;margin-bottom:32px}
+.hero .timeline-rail{margin-inline:13%}
+.timeline-timezone{position:absolute;right:calc(100% + 12px);top:50%;transform:translateY(-50%);white-space:nowrap;font:11px/1.2 var(--font-site);color:var(--muted)}
+.hero .entry-timeline ol{display:flex;justify-content:space-between;padding-top:14px;gap:0}
+.hero .entry-timeline li{width:26%;padding:0}
+.hero .entry-timeline li>time{justify-content:center}
+@media(max-width:1050px){.hero .entry-register{max-width:280px}}
+@media(max-width:700px){
+ .hero .entry-timeline>.basic-label{gap:8px 20px}
+ .hero .timeline-rail{margin-inline:16.666667%}
+ .hero .entry-timeline li{width:33.333333%}
+ .timeline-timezone{font-size:10px;right:calc(100% + 10px)}
 }
