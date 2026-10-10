@@ -392,12 +392,12 @@ svg.icon{display:inline-block;vertical-align:middle;flex:none}
 @media(prefers-reduced-motion:reduce){
  .site-header .brand>span[aria-hidden="true"]{animation:none;opacity:1;text-shadow:none}
 }
-/* Local typography preview: use the installed Thin face for body copy. */
+/* Match Figma's Noto Sans Display Regular instance (wght 400, CTGR 100). */
 @font-face{
- font-family:'QIQC Body Thin';
- src:local('Helvetica Neue Thin'),local('HelveticaNeue-Thin');
+ font-family:'QIQC Noto Sans';
+ src:url('assets/fonts/noto-sans-variable.ttf') format('truetype');
  font-style:normal;
- font-weight:200;
+ font-weight:100 900;
  font-display:swap;
 }
 main p:not(.hero-slogan,.eyebrow,.basic-label,.rule-label,.field-caption p),
@@ -406,8 +406,12 @@ main dd,
 .task-split,
 .task-schematic>span,
 .site-footer p{
- font-family:'QIQC Body Thin',var(--font-site);
- font-weight:200;
+ font-family:'QIQC Noto Sans',var(--font-site);
+ font-weight:400;
+ font-variation-settings:'wght' 400,'wdth' 100,'CTGR' 100;
+ font-synthesis:none;
+ -webkit-font-smoothing:antialiased;
+ -moz-osx-font-smoothing:grayscale;
 }
 .hero #hero-title{font-family:Optima,var(--font-site);font-size:clamp(18px,3.8vw,68px);letter-spacing:-.025em;white-space:nowrap}
 main h2,dialog h2{font-family:var(--font-site);font-weight:400;font-style:normal}
@@ -565,11 +569,12 @@ main>.partners-section{min-height:0;height:auto;padding-top:60px;padding-bottom:
 .site-header nav{font-family:var(--font-site);font-size:17px;font-weight:400}
 @media(min-width:901px){.site-header nav{gap:32px}}
 
-/* Task examples use clear, regular-weight subheadings above the light copy. */
+/* Highlight all three task categories in the shared lime accent. */
 .task-section .task-examples strong{
  font-family:'Helvetica Neue',Helvetica,sans-serif;font-weight:400;
- color:var(--ink);background:transparent;
+ color:var(--ink);background:var(--accent-soft);
 }
+.hero .hero-slogan{font-family:Optima,var(--font-site);font-weight:400}
 
 /* The divider spans the viewport; the footer content keeps its existing columns. */
 .footer-shell{border-top:1px solid var(--line)}
@@ -586,6 +591,7 @@ h1,h2,h3,h4,h5,h6,b,strong,th{font-weight:400}
 /* Override selection on highlighted text and its animated inner spans. */
 mark::selection,mark *::selection,
 .task-goal strong::selection,.task-goal strong *::selection,
+.task-examples strong::selection,.task-examples strong *::selection,
 .button.primary::selection,.button.primary *::selection{
  background:#122d20;color:#f5f9f6;text-shadow:none;
 }
