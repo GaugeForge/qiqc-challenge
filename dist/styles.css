@@ -598,8 +598,11 @@ mark::selection,mark *::selection,
  background:#122d20;color:#f5f9f6;text-shadow:none;
 }
 
-/* The GaugeForge wordmark is the deliberate bold exception. */
-.brand{font-family:'Helvetica Neue',Helvetica,sans-serif;font-weight:700}
+/* Match the poster wordmark: IBM Plex Mono Medium and a separate cursor. */
+@font-face{font-family:'IBM Plex Mono';src:url('assets/fonts/ibm-plex-mono-medium.ttf') format('truetype');font-style:normal;font-weight:500;font-display:swap}
+.brand,.site-footer .brand{display:inline-flex;align-items:center;gap:0;font-family:'IBM Plex Mono',monospace;font-weight:500;line-height:1.28;letter-spacing:0;color:#173b32}
+.brand>span[aria-hidden="true"]{display:inline-block;flex:0 0 .24em;width:.24em;height:1em;background:#286e5c}
+
 
 /* Editorial entrances from Task onward; layout and anchor geometry stay fixed. */
 @media(prefers-reduced-motion:no-preference){

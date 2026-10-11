@@ -12,7 +12,7 @@ const svgIcon=async name=>(await fs.readFile(path.join(root,'src/assets',name+'.
 const arrow=await svgIcon('arrow-up-right');
 const arrowRight=await svgIcon('arrow-right');
 const downloadIcon=await svgIcon('download');
-const header=(documents=false)=>`<a class="skip" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="${documents?'index.html#overview':'#overview'}">GaugeForge<span aria-hidden="true">▍</span></a><button id="menu-toggle" aria-expanded="false" aria-controls="navigation" aria-label="Open navigation" title="Open navigation"><img src="assets/menu.svg" alt=""></button><nav id="navigation" aria-label="Main navigation">${navItems.map(([id,label])=>`<a href="${documents?'index.html':''}#${id}">${label}</a>`).join('')}<a href="documents.html"${documents?' aria-current="page"':''}>Documents</a></nav></header>`;
+const header=(documents=false)=>`<a class="skip" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="${documents?'index.html#overview':'#overview'}">GaugeForge<span aria-hidden="true"></span></a><button id="menu-toggle" aria-expanded="false" aria-controls="navigation" aria-label="Open navigation" title="Open navigation"><img src="assets/menu.svg" alt=""></button><nav id="navigation" aria-label="Main navigation">${navItems.map(([id,label])=>`<a href="${documents?'index.html':''}#${id}">${label}</a>`).join('')}<a href="documents.html"${documents?' aria-current="page"':''}>Documents</a></nav></header>`;
 const faqs=[
  ['Who can enter?','Individuals and teams of up to three people. There is no academic or professional qualification requirement. Applicable law and valid consent still apply.'],
  ['What exactly am I building?','An agent harness: the code that plans work, invokes tools, manages experiment state and verifies results around a fixed Hunyuan 4 Preview (HY4) model. You may modify an existing harness or build your own.'],
@@ -24,7 +24,7 @@ const faqs=[
  ['What must I open source?','Submitted harness code is required to be AGPL open source. The exact version and release timing will be frozen before registration. Data and trajectory use has separate terms, including named organizer and partner recipients.'],
  ['Where are submissions uploaded?','The event submission interface is not yet released. The public repository supports local task runs. The participant guide labels the proposed competition package separately.']
 ];
-const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Build an agent harness around Hunyuan 4 Preview for verified quantum engineering. QIQC Challenge by GaugeForge starts ${facts.schedule.start.label}."><meta name="theme-color" content="#f5f7f8"><title>QIQC Challenge | GaugeForge</title><link rel="stylesheet" href="styles.css"></head><body>
+const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Build an agent harness around Hunyuan 4 Preview for verified quantum engineering. QIQC Challenge by GaugeForge starts ${facts.schedule.start.label}."><meta name="theme-color" content="#f5f7f8"><title>QIQC Challenge | GaugeForge</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="styles.css"></head><body>
 ${header()}
 <main id="main">
 <section class="hero-stage" id="overview" aria-labelledby="hero-title"><div class="hero">
@@ -67,7 +67,7 @@ ${header()}
 <section class="section wrap" id="faq"><div class="section-heading"><h2 class="section-title">FAQ</h2></div><div class="faq">${faqs.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></section>
 <section class="participate-band" aria-labelledby="contact-title"><div class="wrap"><h2 id="contact-title">More questions? Email us.</h2><a class="contact" href="mailto:${facts.contact}">${facts.contact}</a><p class="small">Email inquiry only. Your mail application opens; nothing is sent automatically.</p></div></section></main>
 ${facts.links.registration?'':`<dialog id="registration-dialog" aria-labelledby="registration-title" aria-describedby="registration-description"><button type="button" class="dialog-close" aria-label="Close registration information">×</button><p class="eyebrow">QIQC CHALLENGE / REGISTRATION</p><h2 id="registration-title">Join the challenge.</h2><p id="registration-description">The official registration form is coming soon. Contact GaugeForge for participation information in the meantime.</p><a class="button primary" href="${email('QIQC Challenge registration inquiry')}">Contact the organizer ${arrow}</a><p class="dialog-note">An email inquiry does not register a team. Nothing is submitted automatically.</p></dialog>`}
-<div class="footer-shell"><footer class="site-footer wrap"><a class="brand" href="#overview">GaugeForge<span aria-hidden="true">▍</span></a><p>QIQC Challenge / ${facts.version}</p><p>No registration data is collected on this site. Inquiries are handled by GaugeForge.<br>Data rights and the final participant privacy notice will be available before registration.</p><a href="downloads/participant-guide.html">Privacy and participant terms</a></footer></div><script src="shared.js" defer></script><script src="app.js" defer></script></body></html>`;
+<div class="footer-shell"><footer class="site-footer wrap"><a class="brand" href="#overview">GaugeForge<span aria-hidden="true"></span></a><p>QIQC Challenge / ${facts.version}</p><p>No registration data is collected on this site. Inquiries are handled by GaugeForge.<br>Data rights and the final participant privacy notice will be available before registration.</p><a href="downloads/participant-guide.html">Privacy and participant terms</a></footer></div><script src="shared.js" defer></script><script src="app.js" defer></script></body></html>`;
 await fs.writeFile(path.join(root,'src/index.html'),html);
 
 // Downloadable guide formats; HTML remains an online reading option.
@@ -81,7 +81,7 @@ const supplementaryMaterials=[
  {title:'Quantum-Harbor',url:facts.links.repository,description:'Use the simulated quantum laboratory and public tasks to develop and practice with your agent harness.'},
  {title:'Installation reference',url:`${facts.links.repository}/blob/${facts.technical.repoCommit}/docs/getting-started/installation.md`,description:'Set up the local environment used in the challenge’s Build section before running practice tasks.'}
 ];
-const documentsHtml=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Download the QIQC Challenge participant guide and partner handbook."><meta name="theme-color" content="#f5f7f8"><title>Documents | QIQC Challenge</title><link rel="stylesheet" href="styles.css"></head><body class="documents-page">
+const documentsHtml=`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Download the QIQC Challenge participant guide and partner handbook."><meta name="theme-color" content="#f5f7f8"><title>Documents | QIQC Challenge</title><link rel="icon" type="image/svg+xml" href="assets/favicon.svg"><link rel="stylesheet" href="styles.css"></head><body class="documents-page">
 ${header(true)}
 <main id="main" class="documents-main wrap">
 <a class="documents-back" href="index.html#overview">Back to the challenge</a>
@@ -93,7 +93,7 @@ ${header(true)}
 <p class="supplementary-intro">These GaugeForge resources provide the research background, benchmark and development tools used in the challenge.</p>
 <div class="supplementary-grid">${supplementaryMaterials.map(item=>`<article class="supplementary-item"><h3><a href="${item.url}" target="_blank" rel="noopener">${item.title} ${arrow}</a></h3><p>${item.description}</p></article>`).join('')}</div>
 </section>
-</main><div class="footer-shell"><footer class="site-footer wrap"><a class="brand" href="index.html#overview">GaugeForge<span aria-hidden="true">▍</span></a><p>QIQC Challenge / ${facts.version}</p></footer></div><script src="shared.js" defer></script></body></html>`;
+</main><div class="footer-shell"><footer class="site-footer wrap"><a class="brand" href="index.html#overview">GaugeForge<span aria-hidden="true"></span></a><p>QIQC Challenge / ${facts.version}</p></footer></div><script src="shared.js" defer></script></body></html>`;
 await fs.writeFile(path.join(root,'src/documents.html'),documentsHtml);
 
 await fs.writeFile(path.join(root,'src/404.html'),'<!doctype html><html lang="en"><meta charset="utf-8"><title>Page not found | QIQC</title><link rel="stylesheet" href="styles.css"><h1>Page not found</h1><a href="/">Return to QIQC Challenge</a></html>');
