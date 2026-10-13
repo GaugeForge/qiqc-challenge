@@ -18,28 +18,37 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
  const caption=document.querySelector('#rabi-caption');
  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const colors=[[245,247,248],[153,217,208],[35,142,133],[19,61,59],[250,171,113]];
+ const openingLut=new Uint8ClampedArray(3072),blendedLut=new Uint8ClampedArray(3072);
  const lut=new Uint8ClampedArray(3072);
  for(let i=0;i<1024;i++){
   const v=i/1023*4,k=Math.min(3,Math.floor(v)),f=v-k;
-  for(let c=0;c<3;c++)lut[i*3+c]=colors[k][c]*(1-f)+colors[k+1][c]*f;
+  for(let c=0;c<3;c++){
+   lut[i*3+c]=colors[k][c]*(1-f)+colors[k+1][c]*f;
+   const start=k===3?[57,101,92][c]:colors[k][c];
+   const end=k+1===3?[57,101,92][c]:colors[k+1][c];
+   openingLut[i*3+c]=start*(1-f)+end*f;
+  }
  }
  let width=1000,height=500,pixels,phase=0,last=null,lastPaint=0,frame=null;
  let playing=!reduced.matches,visible=true,dirty=true,hovered=false;
  let targetX=.8,targetY=.5,x=.8,y=.5,strength=0;
  function drawField(){
   const a=1+.3*Math.sin(phase*Math.PI/10),aa=a*a,data=pixels.data;
+  const progress=Number(hero.dataset.layoutProgress??1);
+  for(let i=0;i<lut.length;i++)blendedLut[i]=openingLut[i]*(1-progress)+lut[i]*progress;
   for(let row=0;row<height;row++){
    const d=2.4-4.8*row/(height-1),q=aa+d*d,scale=aa/q,w=Math.PI*Math.sqrt(q)*3.5/(width-1);
    for(let col=0;col<width;col++){
     const s=Math.sin(w*col),color=Math.round(scale*s*s*1023)*3,index=(row*width+col)*4;
-    data[index]=lut[color];data[index+1]=lut[color+1];data[index+2]=lut[color+2];data[index+3]=255;
+    data[index]=blendedLut[color];data[index+1]=blendedLut[color+1];data[index+2]=blendedLut[color+2];data[index+3]=255;
    }
   }
   sourceCtx.putImageData(pixels,0,0);dirty=false;
  }
  function composite(){
-  ctx.clearRect(0,0,width,height);ctx.globalAlpha=.42;ctx.drawImage(source,0,0);ctx.globalAlpha=1;
-  if(strength>.001){
+  const progress=Number(hero.dataset.layoutProgress??1);
+  ctx.clearRect(0,0,width,height);ctx.globalAlpha=1-.58*progress;ctx.drawImage(source,0,0);ctx.globalAlpha=1;
+  if(strength>.001&&progress>.99){
    revealCtx.clearRect(0,0,width,height);revealCtx.globalCompositeOperation='source-over';revealCtx.drawImage(source,0,0);
    const r=width*.20*(1+.035*Math.sin(phase*1.7));
    const gradient=revealCtx.createRadialGradient(x*width,y*height,r*.14,x*width,y*height,r);
@@ -61,7 +70,7 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
  function schedule(){if(frame!==null||!visible||document.hidden)return;last=null;frame=requestAnimationFrame(tick);}
  function resize(){
   // Use layout size: scroll scaling must not reallocate or resample the simulation.
-  const box={width:canvas.offsetWidth,height:canvas.offsetHeight};width=Math.min(1200,Math.max(400,Math.round(box.width)));height=Math.max(200,Math.round(width*box.height/box.width));
+  const box={width:canvas.offsetWidth,height:canvas.offsetHeight};width=Math.min(1440,Math.max(400,Math.round(hero.clientWidth)));height=Math.max(200,Math.round(width*box.height/box.width));
   canvas.width=source.width=reveal.width=width;canvas.height=source.height=reveal.height=height;
   pixels=sourceCtx.createImageData(width,height);dirty=true;drawField();composite();schedule();
  }
@@ -78,9 +87,9 @@ document.querySelector('#copy-code').addEventListener('click',async()=>{
   targetX=Math.max(0,Math.min(1,px));targetY=Math.max(0,Math.min(1,py));
   // Suppress the full-opacity lens when the pointer is over protected text/CTAs.
   // The broad page wash and glyph-shaped text shadows preserve readability.
-  hovered=inside&&!event.target.closest('.protected');schedule();
+  hovered=Number(hero.dataset.layoutProgress??1)>.99&&inside&&!event.target.closest('.protected');schedule();
  });
- function clearFieldHover(){hovered=false;hero.classList.remove('field-caption-visible');schedule();}
+ function clearFieldHover(){dirty=true;hovered=false;hero.classList.remove('field-caption-visible');schedule();}
  hero.addEventListener('pointerleave',clearFieldHover);
  window.addEventListener('scroll',clearFieldHover,{passive:true});
  function syncPlay(){play.textContent=playing?'Ⅱ  Pause motion':'▷  Play motion';play.setAttribute('aria-label',playing?'Pause background animation':'Play background animation');schedule();}
@@ -314,6 +323,7 @@ for(const title of document.querySelectorAll('#hero-title')){
  const header=document.querySelector('.site-header');
  const details=stage.querySelector('.entry-basics');
  const caption=stage.querySelector('.field-caption');
+ const openingAxes=stage.querySelector('.opening-chart-axes');
  const title=stage.querySelector('#hero-title');
  const lines=[...title.querySelectorAll('.title-line')];
  const intro=[...stage.querySelectorAll('.intro-line')];
@@ -337,9 +347,12 @@ for(const title of document.querySelectorAll('#hero-title')){
  }
  function render(){
   frame=null;
-  if(reduced.matches){reveal(1);setOverviewReady(true);return;}
+  if(reduced.matches){hero.dataset.layoutProgress='1';intro[1].style.removeProperty('opacity');reveal(1);setOverviewReady(true);return;}
   const scrollProgress=clamp((window.scrollY-start)/distance);
   const progress=ease(scrollProgress);
+  hero.dataset.layoutProgress=String(progress);
+  openingAxes.style.opacity=String(1-ease(clamp(progress*3)));
+  intro[1].style.opacity=String(ease(clamp((progress-.3)/.7)));
   stage.style.setProperty('--field-scale-x',String(1+(fieldScaleX-1)*(1-progress)));
   stage.style.setProperty('--field-scale-y',String(1+(fieldScaleY-1)*(1-progress)));
   stage.style.setProperty('--field-mask-x',(50+25*progress)+'%');
@@ -349,7 +362,7 @@ for(const title of document.querySelectorAll('#hero-title')){
   geometry.forEach(({element,x,y,scale},index)=>{
    const remainder=1-progress;
    let tx=x*remainder,ty=y*remainder;
-   if(index>0&&index<lines.length){
+   if(window.innerWidth>700&&index>0&&index<lines.length){
     // Separate the lines vertically before bringing the second line left.
     const drop=ease(clamp(progress/.32));
     const move=ease(clamp((progress-.32)/.68));
@@ -358,7 +371,7 @@ for(const title of document.querySelectorAll('#hero-title')){
    }
    element.style.transform=`translate(${tx}px,${ty}px) scale(${1+(scale-1)*remainder})`;
   });
-  reveal(ease(clamp((progress-.28)/.72)));
+  reveal(ease(clamp((progress-.72)/.28)));
   setOverviewReady(scrollProgress>=1);
  }
  function measure(){
@@ -373,40 +386,36 @@ for(const title of document.querySelectorAll('#hero-title')){
   stage.classList.add('is-staged');
   const navHeight=header.getBoundingClientRect().height;
   const viewport=Math.max(1,window.innerHeight-navHeight);
-  fieldScaleX=hero.clientWidth/Math.max(1,field.offsetWidth);
-  fieldScaleY=viewport/Math.max(1,field.offsetHeight);
+  const mobile=window.innerWidth<=700;
+  const chartHeight=mobile?Math.max(220,Math.min(320,window.innerHeight*.34)):Math.max(230,Math.min(480,window.innerHeight*.41926));
+  stage.style.setProperty('--opening-chart-height',chartHeight+'px');
+  fieldScaleX=hero.clientWidth/Math.max(1,parseFloat(getComputedStyle(field).width)*.96296296);
+  fieldScaleY=chartHeight/Math.max(1,parseFloat(getComputedStyle(field).height)*.86413043);
   distance=Math.round(Math.max(420,viewport*.95));
   start=stage.getBoundingClientRect().top+window.scrollY-navHeight;
   stage.dataset.scrollDistance=String(distance);
   stage.style.setProperty('--stage-height',(hero.offsetHeight+distance)+'px');
   const heroBox=hero.getBoundingClientRect();
-  const availableWidth=window.innerWidth-Math.max(40,window.innerWidth*.084);
-  const titleScale=Math.max(1,Math.min(90,window.innerWidth*.05)/parseFloat(getComputedStyle(title).fontSize));
-  const textScale=Math.max(1,Math.min(24,window.innerWidth*.0155)/parseFloat(getComputedStyle(intro[0]).fontSize));
-  const sloganScale=Math.max(1,Math.min(40,window.innerWidth*.026)/parseFloat(getComputedStyle(slogan).fontSize));
+  const availableWidth=window.innerWidth-(mobile?40:window.innerWidth*.048);
   const boxes=items.map(element=>element.getBoundingClientRect());
-  // The same two title lines share a row in the opening, then settle into P2.
-  const wordGap=parseFloat(getComputedStyle(title).fontSize)*.23;
-  const combinedWidth=boxes.slice(0,lines.length).reduce((sum,box)=>sum+box.width,0)+wordGap*(lines.length-1);
-  const headingScale=Math.min(titleScale,availableWidth/combinedWidth);
-  const scales=items.map((element,index)=>index<lines.length?headingScale:Math.min(index<items.length-1?textScale:sloganScale,availableWidth/boxes[index].width));
+  const fontSize=parseFloat(getComputedStyle(title).fontSize);
+  const wordGap=fontSize*.23;
+  const titleWidth=mobile?Math.max(...boxes.slice(0,lines.length).map(box=>box.width)):boxes.slice(0,lines.length).reduce((sum,box)=>sum+box.width,0)+wordGap;
+  const headingScale=Math.min(window.innerWidth*(mobile?.104:.0625)/fontSize,availableWidth/titleWidth);
+  const textScale=1;
+  const sloganScale=Math.min(Math.max(24,Math.min(44,window.innerWidth*.026))/parseFloat(getComputedStyle(slogan).fontSize),availableWidth/boxes.at(-1).width);
   const headingHeight=Math.max(...boxes.slice(0,lines.length).map(box=>box.height))*headingScale;
-  const total=headingHeight+30+boxes.slice(lines.length).reduce((sum,box,index)=>sum+box.height*scales[index+lines.length],0)+26;
-  const fit=Math.max(.1,Math.min(1,(viewport-48)/total));
-  let y=Math.max(24,(viewport-total*fit)/2);
-  let titleX=(window.innerWidth-combinedWidth*headingScale*fit)/2;
+  const headingY=chartHeight+(mobile?44+22:54+16);
+  const introY=headingY+headingHeight*(mobile?2:1)+(mobile?20:24);
+  const sloganY=introY+boxes[lines.length].height*textScale+(mobile?26:35);
+  let titleX=(window.innerWidth-titleWidth*headingScale)/2;
   geometry=items.map((element,index)=>{
-   const box=boxes[index],scale=scales[index]*fit;
-   const initialX=index<lines.length?titleX:(window.innerWidth-box.width*scale)/2;
-   const result={element,x:initialX-box.left,y:y-(box.top-heroBox.top),scale};
-   if(index<lines.length){
-    titleX+=(box.width+wordGap)*scale;
-    if(index===lines.length-1)y+=(headingHeight+30)*fit;
-   }else{
-    y+=box.height*scale;
-    if(index===items.length-2)y+=26*fit;
-   }
-   return result;
+   const box=boxes[index];
+   const scale=index<lines.length?headingScale:index<items.length-1?textScale:sloganScale;
+   const initialX=index<lines.length&&!mobile?titleX:(window.innerWidth-box.width*scale)/2;
+   const y=index<lines.length?headingY+(mobile?index*headingHeight:0):index<items.length-1?introY+(index-lines.length)*boxes[lines.length].height*textScale:sloganY;
+   if(index<lines.length)titleX+=(box.width+wordGap)*scale;
+   return {element,x:initialX-box.left,y:y-(box.top-heroBox.top),scale};
   });
   render();
  }

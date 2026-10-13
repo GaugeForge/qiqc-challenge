@@ -1,0 +1,46 @@
+@font-face{font-family:"IBM Plex Mono";src:url('/site-assets/fonts/ibm-plex-mono-medium.ttf') format('truetype');font-weight:500;font-display:swap}
+@font-face{font-family:"Noto Sans Display";src:url('/site-assets/fonts/noto-sans-variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
+:root{color-scheme:light;--ink:#173b32;--muted:#5e736c;--paper:#fafcfb;--lime:#b4f889}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif}a{color:inherit;text-decoration:none}a:hover{color:#72ad42}a:focus-visible,button:focus-visible{outline:2px solid #286e5c;outline-offset:5px}
+.navigation{height:78px;padding:0 4.444vw;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #cbd7d2;background:#fff;position:relative;z-index:2}.brand{font:500 25px/1.28 "IBM Plex Mono",monospace;display:inline-flex;align-items:center;gap:0}.brand span{width:.24em;height:1em;background:#286e5c}.navigation nav{display:flex;gap:32px;font-size:17px;line-height:1.6;font-weight:400}
+.opening{min-height:calc(100svh - 78px);padding-bottom:42px}.chart{height:61.13svh;min-height:310px;position:relative;isolation:isolate;background:var(--paper)}.field{position:absolute;inset:0;overflow:hidden}.fallback{position:absolute;width:111.111%;height:121.951%;left:-9.444%;top:-2.439%;object-fit:fill}canvas{display:block;width:100%;height:100%;position:absolute;inset:0;opacity:0}.ready canvas{opacity:1}.ready .fallback{visibility:hidden}
+h1{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;margin:0;padding:0 2.4vw;font:400 6.25vw/1.43 Optima,Georgia,serif;letter-spacing:-.026875em;white-space:nowrap;color:var(--ink);pointer-events:none}
+.motion{position:absolute;right:18px;bottom:14px;z-index:1;border:1px solid #173b3233;border-radius:50%;background:#fafcfbc9;color:#173b32;width:32px;height:32px;font:400 14px/1 Helvetica,sans-serif;cursor:pointer;opacity:.4;transition:opacity .2s}.motion:hover,.motion:focus-visible{opacity:1}
+.axis{height:55px;position:relative;border-top:1px solid #557d7044;color:#557d708c;font:400 10px/1.2 "Helvetica Neue",Arial,sans-serif}.ticks{display:flex;justify-content:space-between}.ticks span{position:relative;padding-top:9px;min-width:1px}.ticks span:before{content:"";position:absolute;top:0;left:50%;height:5px;width:1px;background:#557d7044}.axis-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap}
+.description{text-align:center;padding:0 24px}.description>p:first-child{font:400 clamp(17px,1.55vw,26px)/1.55 "Noto Sans Display",sans-serif;font-variation-settings:"wght" 400,"wdth" 100,"CTGR" 100;color:var(--muted);margin:0}.slogan{font:400 clamp(24px,2.6vw,44px)/1.3 Optima,Georgia,serif;margin:31px 0 0}.slogan mark{background:var(--lime);color:var(--ink);box-decoration-break:clone;-webkit-box-decoration-break:clone}mark::selection{background:var(--ink);color:#fff}
+@media(min-width:1700px){.chart{max-height:660px}}
+@media(max-width:700px){.navigation{height:70px;padding:0 20px}.brand{font-size:20px}.navigation nav{gap:14px;font-size:13px}.opening{min-height:calc(100svh - 70px)}.chart{height:53svh;min-height:330px}h1{font-size:11.8vw;line-height:1.22;white-space:normal;text-wrap:balance;padding:0 6vw}.description{padding:16px 24px 0}.axis{height:42px}.slogan{margin-top:26px;font-size:27px}}
+@media(max-width:440px){.navigation{height:auto;min-height:92px;gap:13px;flex-wrap:wrap;padding:15px 20px}.navigation nav{width:100%;justify-content:space-between}.chart{height:48svh;min-height:300px}}
+
+.axis-art{position:absolute;inset:0;pointer-events:none;overflow:visible;opacity:.63}.axis-art img{position:absolute;left:-.56%;top:0;max-width:none;transform-origin:top left;transform:scale(var(--axis-x,1),var(--axis-y,1))}
+
+/* Latest Figma layout: shallow chart, then a separate title and introduction. */
+.chart{height:41.926svh;min-height:230px;max-height:480px}
+.axis{height:54px}
+h1{position:static;display:block;padding:0 2.4vw;margin:16px 0 0;font:400 6.25vw/1.4315 Optima,Georgia,serif;letter-spacing:-.026875em;text-align:center;white-space:nowrap;color:var(--ink)}
+h1>span:last-child{color:#286e5c}
+.description{margin-top:12px}
+.slogan{margin-top:35px}
+.motion{top:14px;bottom:auto}
+.y-axis{position:absolute;inset:0 auto 0 0;width:74px;pointer-events:none;z-index:1;color:#557d708c;font:400 12px/1.2 "Helvetica Neue",Arial,sans-serif;text-shadow:none}
+.y-title{position:absolute;left:30px;top:50%;writing-mode:vertical-rl;transform:translateY(-50%) rotate(180deg);white-space:nowrap;letter-spacing:.02em}
+.y-rail{position:absolute;top:0;bottom:0;left:0;border-left:1px solid #557d7044}
+.y-rail>span{position:absolute;left:8px;right:auto;transform:translateY(-50%);font-variant-numeric:tabular-nums}
+.y-rail>span:after{content:"";position:absolute;width:5px;height:1px;left:-8px;top:50%;background:#557d7044}
+@media(max-width:700px){
+ .chart{height:34svh;min-height:220px;max-height:320px}
+ .axis{height:44px}
+ h1{margin-top:22px;font-size:10.4vw;line-height:1.18;white-space:normal;text-wrap:balance;padding:0 20px}
+ h1>span{display:block;white-space:nowrap}
+ .description{margin-top:20px;padding:0 24px}
+ .slogan{margin-top:26px}
+ .y-axis{font-size:10px;width:57px}.y-title{left:28px}.y-rail{left:0}
+}
+
+/* Both axes use the field edge as x=0; labels stay inside the viewport. */
+.ticks{display:block;position:relative;height:25px}
+.ticks>span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.ticks>span:first-child{transform:none}
+.ticks>span:first-child:before{left:0}
+.ticks>span:last-child{transform:translateX(-100%)}
+.ticks>span:last-child:before{left:auto;right:0}

@@ -31,7 +31,7 @@
 
 /* The annotation follows the corner illustration, with a quiet resting state. */
 .field-caption{position:absolute;top:calc(clamp(280px,30vw,430px) + 8px);right:clamp(24px,4.4vw,64px);width:min(365px,calc(60vw - 64px));z-index:2;color:#395e4b;opacity:.16;transition:opacity .35s ease;font:9px/1.7 var(--font-site);letter-spacing:.1px}
-.field-caption p{font-size:10px;letter-spacing:1.5px;margin:0 0 4px}.field-caption>span{display:block}.field-caption>div{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:3px}.field-caption button{border:0;background:transparent;color:inherit;font:9px var(--font-site);padding:7px 0 7px 7px;white-space:nowrap;min-height:32px}/* Touch scrolling must not latch the scientific caption into its hover state. */
+.field-caption p{font-size:10px;letter-spacing:1.5px;margin:0 0 4px}.field-caption>span{display:block}.field-caption>div{display:flex;align-items:center;justify-content:flex-start;gap:12px;margin-top:3px}.field-caption button{border:0;background:transparent;color:inherit;font:9px var(--font-site);padding:7px 0;white-space:nowrap;min-height:32px}/* Touch scrolling must not latch the scientific caption into its hover state. */
 @media(min-width:701px) and (hover:hover) and (pointer:fine){
  .hero.field-caption-visible .field-caption,.field-caption:hover{opacity:1}
 }
@@ -679,3 +679,32 @@ mark::selection,mark *::selection,
  .hero .entry-timeline li{width:33.333333%}
  .timeline-timezone{font-size:10px;right:calc(100% + 10px)}
 }
+
+/* Opening layout: the existing field and title travel to their unchanged P2 positions. */
+.hero-stage.is-staged .hero-field{opacity:1;mask-image:none;-webkit-mask-image:none}
+.hero-stage.is-staged .hero::after{opacity:0}
+.opening-chart-axes{display:none}
+.hero-stage.is-staged .opening-chart-axes{display:block;position:absolute;inset:0 0 auto;height:var(--opening-chart-height);pointer-events:none;z-index:1;color:#557d708c;font:400 12px/1.2 var(--font-site)}
+.opening-chart-axes .y-axis{position:absolute;inset:0 auto 0 0;width:74px}
+.opening-chart-axes .y-title{position:absolute;left:30px;top:50%;writing-mode:vertical-rl;transform:translateY(-50%) rotate(180deg);white-space:nowrap;letter-spacing:.02em}
+.opening-chart-axes .y-rail{position:absolute;top:0;bottom:0;left:0;border-left:1px solid #557d7044}
+.opening-chart-axes .y-rail>span{position:absolute;left:8px;transform:translateY(-50%);font-variant-numeric:tabular-nums}
+.opening-chart-axes .y-rail>span:after{content:'';position:absolute;width:5px;height:1px;left:-8px;top:50%;background:#557d7044}
+.opening-chart-axes .axis{position:absolute;top:100%;left:0;right:0;height:54px;border-top:1px solid #557d7044;font-size:10px}
+.opening-chart-axes .ticks{position:relative;height:25px}
+.opening-chart-axes .ticks>span{position:absolute;transform:translateX(-50%);padding-top:9px;white-space:nowrap}
+.opening-chart-axes .ticks>span:before{content:'';position:absolute;top:0;left:50%;height:5px;width:1px;background:#557d7044}
+.opening-chart-axes .ticks>span:first-child{transform:none}
+.opening-chart-axes .ticks>span:first-child:before{left:0}
+.opening-chart-axes .ticks>span:last-child{transform:translateX(-100%)}
+.opening-chart-axes .ticks>span:last-child:before{left:auto;right:0}
+.opening-chart-axes .axis-caption{position:absolute;bottom:0;left:50%;transform:translateX(-50%);white-space:nowrap}
+@media(max-width:700px){
+ .opening-chart-axes .axis{height:44px}
+ .hero-stage.is-staged .opening-chart-axes{font-size:10px}
+ .opening-chart-axes .y-title{left:28px}
+}
+.hero-stage.is-staged .rabi-axes{transform-origin:top right;transform:scale(var(--field-scale-x,1),var(--field-scale-y,1))}
+
+/* Raise the P2 introduction by half its line height; opening coordinates are measured independently. */
+.hero .event-intro{top:-.5lh}
