@@ -23,7 +23,7 @@ The QIQC Challenge evaluates an **agent harness**: an auditable code package tha
 
 When the quiet period starts, evaluations still waiting in the queue and not yet started are cancelled and the team sees a notice. Evaluations already running are not interrupted and finish naturally.
 
-The competition model is hy4, provided through the unified model gateway. **The Codex + Astra(xhigh) baseline will be published with the leaderboard when the official competition starts.**
+The competition model is provided through the unified model gateway. **The Codex + Astra(xhigh) baseline will be published with the leaderboard when the official competition starts.**
 
 ## 2. Accounts and contact
 
