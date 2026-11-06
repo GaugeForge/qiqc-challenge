@@ -19,7 +19,7 @@
     "website": "https://gaugeforge.github.io/qiqc-challenge/",
     "qr": "https://gauge-forge.com/qiqc",
     "qrPurpose": "Benchmark information, not registration",
-    "submissionPortal": "https://173.249.36.41/submit"
+    "submissionPortal": "https://gauge-forge.com/qiqc/submit"
   },
   "schedule": {
     "timezone": "Asia/Singapore",
