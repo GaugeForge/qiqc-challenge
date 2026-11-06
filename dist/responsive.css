@@ -1,0 +1,80 @@
+/* Shared layout contract: normal document flow, readable type and bounded grids.
+   Loaded after the original landing-page art direction on every current page. */
+:root { --font-site: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { font-size: 16px; line-height: 1.65; }
+img, svg, canvas { max-width: 100%; }
+.site-header { padding: 18px clamp(20px, 4vw, 64px); gap: 24px; height: auto; }
+.site-header nav { gap: clamp(14px, 2vw, 28px); font-size: 14px; flex-wrap: wrap; }
+.site-header .brand { font-size: 25px; flex-shrink: 0; }
+.site-header nav a { min-height: 44px; display: inline-flex; align-items: center; }
+.event-access-notice { padding: 12px clamp(20px, 4vw, 64px); font-size: 12px; line-height: 1.6; }
+.wrap { max-width: 1280px; padding-inline: clamp(24px, 4vw, 56px); }
+.scroll-reveal { opacity: 1; translate: none; pointer-events: auto; }
+.hero-stage { height: auto; }
+.hero-stage .hero { position: relative; min-height: 0; overflow: hidden; }
+.hero-inner.wrap { max-width: 1280px; min-height: 0; margin-inline: auto; padding: 72px clamp(24px, 4vw, 56px) 64px; }
+.hero .hero-copy { width: 100%; max-width: 760px; padding: 0; }
+.hero #hero-title { display: block; width: auto; font-size: clamp(38px, 4.5vw, 64px); line-height: 1.12; letter-spacing: -.035em; margin: 0 0 28px; }
+.hero #hero-title .title-line { max-width: 100%; width: auto; white-space: normal; }
+.hero .event-intro { position: static; font-size: 17px; line-height: 1.7; margin: 0 0 24px; }
+.hero .intro-line { width: auto; }
+.hero .hero-slogan { font-family: var(--font-site); font-size: clamp(21px, 2.3vw, 28px); line-height: 1.5; }
+.hero::after { display: none; }
+.hero .entry-basics { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 32px 64px; margin: 48px 0 0; padding: 32px 0 0; border-top: 1px solid var(--line); }
+.hero .entry-basics .prize-overview { grid-column: 1; grid-row: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.hero .entry-basics .prize-overview .rule-label { font-size: 12px; line-height: 1.6; letter-spacing: .05em; }
+.hero .prize-overview article h3 { font-size: 28px; line-height: 1.4; }
+.hero .entry-register { top: auto; grid-column: 2; grid-row: 1 / 3; width: 100%; max-width: none; align-self: start; }
+.hero .register-now { min-height: 52px; font-size: 16px; }
+.hero .entry-basics > .entry-timeline { grid-column: 1; grid-row: 2; }
+.hero .entry-timeline li > .timeline-event { font-size: 13px; line-height: 1.5; }
+.section { padding-block: 72px; }
+.section-heading p, .task-description, .rule-row p, .eval-explanation > p { font-size: 16px; line-height: 1.75; }
+.rule-facts { gap: 28px; }
+.rule-row h3 { font-size: 19px; }
+.evaluation-demo { padding: 28px; }
+.eval-explanation h4 { line-height: 1.4; }
+.eval-takeaway p { font-size: 14px; line-height: 1.7; }
+.documents-main { padding-top: 56px; }
+.documents-heading { max-width: 860px; }
+.documents-heading h1 { letter-spacing: -.03em; line-height: 1.2; }
+.document-item { gap: 32px; padding-block: 32px; }
+.document-copy, .document-downloads, .supplementary-item { min-width: 0; }
+.document-copy h2 { font-size: 24px; line-height: 1.4; letter-spacing: -.02em; }
+.document-copy p, .supplementary-item p { line-height: 1.75; }
+
+@media (max-width: 1100px) {
+  .site-header { flex-wrap: wrap; }
+  .site-header nav { gap: 12px 20px; }
+  .hero .hero-copy { width: 100%; }
+  .hero .entry-basics { grid-template-columns: minmax(0, 1fr) 240px; column-gap: 32px; }
+  .rule-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .hero-inner.wrap { padding-top: 48px; }
+  .hero .hero-copy { width: 100%; max-width: none; padding-right: 0; }
+  .hero .entry-basics { grid-template-columns: minmax(0, 1fr); }
+  .hero .entry-register { grid-column: 1; grid-row: 3; max-width: 360px; justify-self: start; }
+  .documents-heading { padding-right: 0; }
+}
+@media (max-width: 600px) {
+  .site-header { position: static; padding: 16px 20px; }
+  .site-header .brand { font-size: 23px; }
+  .wrap { padding-inline: 20px; }
+  .hero-inner.wrap { padding: 32px 20px 40px; }
+  .hero #hero-title { font-size: clamp(32px, 8.2vw, 45px); }
+  .hero .event-intro { font-size: 16px; }
+  .hero .entry-basics { margin-top: 32px; gap: 32px; }
+  .hero .entry-basics .prize-overview { gap: 16px; }
+  .hero .prize-overview article h3 { font-size: 24px; }
+  .hero .entry-timeline li > .timeline-event { font-size: 12px; }
+  .section { padding-block: 44px; }
+  .rule-facts { grid-template-columns: 1fr; }
+  .evaluation-demo { padding: 20px; }
+  .document-item { padding-block: 28px; }
+  .document-copy h2 { font-size: 22px; }
+  .documents-main { padding-top: 32px; }
+  .research-line { flex-wrap: wrap; gap: 16px; }
+  .site-footer { grid-template-columns: 1fr; gap: 18px; }
+}
