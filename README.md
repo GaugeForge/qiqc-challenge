@@ -1,55 +1,37 @@
 # QIQC Challenge website
 
-The public English GaugeForge challenge website. Static HTML, CSS and JavaScript; no package dependencies, registration backend, analytics or model credentials.
-
-## Repository and local folder
-
-Primary remote: https://github.com/ChenxDeng/qiqc-challenge-web (`origin`). The earlier demo repository is retained as `demo`: https://github.com/ChenxDeng/GFdemo2. Existing website commits are preserved.
-
-On this workstation, open this folder in Fork:
-
-`/Users/sisi/Documents/实习/GaugeForge/qiqc-challenge`
-
-The earlier copy under `qiqc-project-context-package/output/qiqc-challenge/website` is a historical delivery copy. Make future website edits in this independent repository.
+This repository contains the public English GaugeForge QIQC Challenge website
+and the files intentionally published for participants. It does not contain
+production credentials, databases, private task manifests, rollout data,
+server configuration or deployment state.
 
 ## Local preview
 
-Requires Node.js 20 or newer. No `npm install` is needed.
+Node.js 20 or newer is required. The build has no npm runtime dependencies.
 
 ```sh
 npm run build
 PORT=4174 npm start
 ```
 
-Open http://127.0.0.1:4174/. On Windows PowerShell, use `$env:PORT='4174'` followed by `npm start`. Rebuild after source changes, then refresh the page; the server serves `dist/` and does not need restarting after a build.
+Open `http://127.0.0.1:4174/` for the static preview. The participant portal
+and staff operations are served by the separately managed competition service;
+this static preview does not provide account, upload or evaluation operations.
 
-## Folder layout
+## Source layout
 
-| Path | Purpose |
-| --- | --- |
-| `generate.mjs` | Editable page markup and English copy; generates `src/index.html`. |
-| `src/styles.css` | Layout, theme, hover effects and animations. |
-| `src/app.js` | Rabi canvas, scroll transition, counters, timeline, task tabs and other interactions. |
-| `src/facts.json` | Public event facts used by the generator. |
-| `src/assets/` | Public images, SVG icons and third-party notices. |
-| `src/downloads/` | Public participant and partner guides (PDF, HTML and Markdown). |
-| `build.mjs` | Generates HTML and copies only allowlisted public files into `dist/`. |
-| `server.mjs` | Local static preview server; defaults to port 4173 unless `PORT` is set. |
-| `dist/` | Generated public deployment snapshot, tracked together with its source. |
-| `.github/workflows/ci.yml` | Builds and checks that committed generated files match their sources. |
-| `.github/workflows/pages.yml` | GitHub Pages publication on main pushes or manual dispatch. |
+- `generate.mjs` generates the public homepage from `src/facts.json`.
+- `src/` contains the public website source and assets.
+- `src/downloads/participant-manual.en.*` contains the English participant
+  manual published for the event.
+- `src/downloads/participant-guide.*` and `src/downloads/partner-handbook.*`
+  are retained historical public downloads.
+- `dist/` is the generated static snapshot and is checked together with its
+  source.
 
-Do not edit `dist/` or `src/index.html` directly. Edit the source, run `npm run build`, and commit source and generated changes together. No internal founder materials, hidden tasks or private answers belong in this repository. The original event-facts master lives outside this standalone website; coordinate factual changes with the event owner and keep the public guides consistent.
-
-## Version control in Fork
-
-1. Open the folder above using **File → Open Repository**.
-2. Fetch `origin` before beginning work. Use a short feature branch for a coherent change, such as `ui/task-copy` or `fix/navigation`.
-3. Edit source files, run `npm run build`, then preview the affected interactions.
-4. Inspect the diff in Fork. Stage the relevant source and generated output together, then commit with a clear description.
-5. Push the branch to `origin` and merge through a pull request when ready. Pull uses fast-forward only to avoid accidental merge commits.
-
-`main` is the shared baseline. Do not force-push or rewrite shared history. No branch-protection settings are implied by this local setup; those are managed separately on GitHub. `.env` files, logs, dependency folders and OS metadata are ignored.
+The historical `documents.html` page and its original download links are
+preserved. The build copies that page and the original download files without
+rewriting them.
 
 ## Checks
 
@@ -60,23 +42,8 @@ npm run build
 git diff --check
 ```
 
-CI also rebuilds and rejects stale generated files. For interaction changes, check direct clicks, keyboard operation, rapid repeated input, reduced motion and section positioning. The site has no automated browser-test dependency; build checks are not visual verification.
+Review the generated diff before publication. Do not add databases, runtime
+directories, provider configuration, server keys, compiled binaries, rollouts,
+test evidence or local virtual environments.
 
-## Publishing
-
-Pushing to `origin` runs CI. Each push to `main` also runs **Publish website**, rebuilds the current source, and publishes only `dist/`. In Settings → Pages, the source must be **GitHub Actions**, not a branch root (which would render this README instead of the website). Manual workflow dispatch is also available. The live site is https://chenxdeng.github.io/qiqc-challenge-web/. The existing GFdemo2 demo is separate.
-
-The retained `demo` remote is for explicit legacy demo updates; normal pushes target `origin`. Do not push to it unless a legacy demo update is intended.
-
-## Current interactions
-
-- A single title, introduction and slogan move from the centered opening into the overview as the user scrolls. The Rabi field transitions from a large background to the upper-right corner.
-- The ideal two-level Rabi illustration is decorative, not experimental data. Each frame represents a separate constant-amplitude experiment. Reduced motion disables autoplay.
-- Prize amounts count up only after the overview is revealed and the amounts are visible. The date-driven timeline uses the UTC+8 calendar, with a current-status tooltip.
-- Task has four directly selectable, keyboard-accessible stages. Evaluation separates Rules and Results, with seven independent reading checkboxes; proposed scoring and review details are marked as proposed.
-- Registration opens an information dialog until a registration URL is configured. Participant Guide opens the public PDF. Email links open the mail application and do not send automatically.
-- Hover motion, FAQ disclosure, section navigation and the header cursor respect reduced-motion preferences.
-
-## Attribution
-
-See `THIRD-PARTY-NOTICES.md` and the icon notices in `src/assets/`. The AGPL requirement described on the website applies to submitted competition harnesses; it does not automatically relicense this website or the MIT-licensed Quantum-Harbor repository.
+See `THIRD-PARTY-NOTICES.md` for asset attribution and licensing information.
