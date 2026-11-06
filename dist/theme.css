@@ -231,3 +231,49 @@ dialog::backdrop { background: #13212b66; backdrop-filter: blur(3px); }
 @media (max-width: 600px) {
  :root body .site-header { padding: 0 20px; }
 }
+
+/* Participant console typography and controls follow the public challenge
+   page. Layout and spacing stay with the console components. */
+.competition-console {
+  --paper: #f5f7f8;
+  --ink: #162725;
+  --muted: #4b605a;
+  --line: #bccbc6;
+  --green: #286e5c;
+  --accent-soft: #b4f889;
+  --white: #fff;
+  --font-site: 'Helvetica Neue', Helvetica, sans-serif;
+}
+.competition-console h1,
+.competition-console h2,
+.competition-console h3 {
+  font-family: var(--font-site);
+  font-weight: 400;
+  color: var(--ink);
+}
+.competition-console .eyebrow {
+  font-family: var(--font-site);
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 1.5px;
+}
+.competition-console .button,
+.competition-console .button.primary {
+  border-radius: 3px;
+  font-weight: 400;
+  box-shadow: none;
+}
+.competition-console .button.primary {
+  background: var(--accent-soft);
+  border-color: var(--green);
+  color: var(--ink);
+}
+.competition-console .button.primary:hover:not(:disabled) {
+  background: #a4eb78;
+  border-color: var(--green);
+  color: var(--ink);
+}
+.competition-console .panel {
+  border-radius: 6px;
+  border-color: var(--line);
+}
