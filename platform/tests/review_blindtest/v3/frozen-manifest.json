@@ -1,0 +1,22 @@
+{
+  "schema": "qiqc-review-v3-freeze/v1",
+  "frozen_at": "2026-10-20T14:44:12.406100+00:00",
+  "policy_version": "qiqc-readonly-advisory/v3",
+  "provider_version": "openrouter-hy4-chat-v3",
+  "model": "tencent/hy4-preview",
+  "maximum_requests": 24,
+  "concurrency": 1,
+  "timeout_seconds": 120,
+  "max_output_tokens_per_request": 8192,
+  "method": "New synthetic corpus authored before any response on these cases; labels excluded from runner/model input. Not externally independent or representative prevalence.",
+  "files": {
+    "competition-platform/platform/tests/review_blindtest/v3/fixtures.json": "33bf556820c5f38f4a6c934e88e89322636bfacb8b2ede3bf58f12dbad144a33",
+    "competition-platform/platform/tests/review_blindtest/v3/expected-labels.json": "b68b448f3c1226f7f11232e4bbd468ffc76238bfc207f2b1b3d95c1d2045c654",
+    "competition-platform/platform/tests/review_blindtest/v3/evaluate.py": "5501b942eb1035349250618f23d981ff360627c6bdc758cfaa42883c930e4da1",
+    "competition-platform/platform-go/internal/review/review.go": "cfb1a70f1fef1acd86bd71e07f1c97169a2a13f8a3ef042e93dfde93ae737f5c",
+    "competition-platform/platform-go/internal/review/provider.go": "67396285479a4761c810daf1311cd92ef36827646ea8d2b0bd3a8ae3274ee86b",
+    "competition-platform/platform/qiqc/archive.py": "0033d0e192a32dbbd1983be98876aa00bb1168be5401317df468d71342d1df34",
+    "competition-platform/platform-go/cmd/review-blindcheck/main.go": "5c73a1b15af094b11443eb0c95924332ec9586856114695d259f8620d0b87983",
+    "competition-platform/platform-go/cmd/review-blindcheck/v3.go": "71756fc96fa45fb5f8c0158dec2cce0cd31700bedff335f2afc8a77f6882b41f"
+  }
+}

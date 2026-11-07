@@ -1,0 +1,35 @@
+[Unit]
+Description=QIQC fixed archive scanner helper (staging only)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=qiqc-stage-data
+RuntimeDirectory=qiqc-stage-scanner
+RuntimeDirectoryMode=0750
+StateDirectory=qiqc-stage-scanner
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 /opt/qiqc-staging/current/scanner_helper.py --socket /run/qiqc-stage-scanner/scanner.sock --quarantine /var/lib/qiqc-staging/data/quarantine --spool /var/lib/qiqc-stage-scanner --parser /opt/qiqc-staging/current/archive.py --image sha256:0000000000000000000000000000000000000000000000000000000000000000 --api-user qiqc-stage-api
+ReadWritePaths=/run/qiqc-stage-scanner /var/lib/qiqc-stage-scanner
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0007
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=480
+
+[Install]
+WantedBy=multi-user.target

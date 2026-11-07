@@ -1,0 +1,21 @@
+[Unit]
+Description=QIQC Go edge for local Demo
+After=qiqc-demo-api.service
+Requires=qiqc-demo-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/QQ-Challenge/competition-platform/platform-go
+Environment=QIQC_BACKEND=http://127.0.0.1:8765
+Environment=QIQC_ADAPTERS=/root/QQ-Challenge/competition-platform/adapters
+ExecStart=/root/QQ-Challenge/runtime/legacy-platform-data/bin/qiqc-platform-go -listen 127.0.0.1:8790
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

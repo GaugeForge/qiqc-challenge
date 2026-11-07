@@ -1,0 +1,16 @@
+{
+  "schema": "qiqc-review-blind-freeze/v1",
+  "frozen_at": "2026-10-20T04:30:22.490399+00:00",
+  "method": "Independent fixtures and expected labels frozen before first provider call. Labels never loaded by review-blindcheck.",
+  "model": "tencent/hy4-preview",
+  "policy_version": "qiqc-readonly-advisory/v1",
+  "maximum_requests": 8,
+  "timeout_seconds": 120,
+  "files": {
+    "competition-platform/platform/tests/review_blindtest/fixtures.json": "cacd7b548312837dd3cb1670b50b33fb17a53b23f1c4f229e550b3c4b653af68",
+    "competition-platform/platform/tests/review_blindtest/expected-labels.json": "385d2b46e09af94e3f63652b04e89c70742a4576c8f59ff4dd5863659a15bd1a",
+    "competition-platform/platform-go/internal/review/review.go": "94e3405b715ccc75b2e2fb59fa203cc117fcdb8c5774c378f267ff06d84de575",
+    "competition-platform/platform-go/internal/review/provider.go": "e55a7bed68e8e7262b6a1f9802b4ca7b51f293aa41eb231a2f7bfc493dc270cc",
+    "competition-platform/platform/qiqc/archive.py": "0033d0e192a32dbbd1983be98876aa00bb1168be5401317df468d71342d1df34"
+  }
+}

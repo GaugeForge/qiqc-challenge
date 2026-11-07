@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+const escapeLine=source.slice(source.indexOf('const esc'),source.indexOf('const route'));
+const helpers=source.slice(source.indexOf('function reviewAdviceLabel('),source.indexOf('function renderAdmin('));
+const context=vm.createContext({});vm.runInContext(escapeLine+'\n'+helpers,context);
+assert.match(context.reviewAdviceLabel({outcome:'provider_unavailable'}),/unavailable/);
+assert.match(context.reviewAdviceLabel({outcome:'provider_error'}),/incomplete/);
+assert.match(context.reviewAdviceLabel({outcome:'advice_ready',provider_version:'fake-advisory-fixture-v1'}),/Simulated/);
+assert.match(context.reviewAdviceLabel({outcome:'advice_ready',provider_version:'openrouter-hy4-chat-v1'}),/requires review/);
+const html=context.reviewAdviceHTML({outcome:'advice_ready',summary:'<script>attack()</script>',findings:[{rule:'<img src=x onerror=attack()>',file:'<svg onload=attack()>',confidence:'<iframe>',explanation:'<script>attack()</script>'}]});
+assert(!/<(?:script|img|svg|iframe)/.test(html));assert(html.includes('&lt;script&gt;'));
+console.log('M03 admin advisory states and escaped untrusted fields passed');

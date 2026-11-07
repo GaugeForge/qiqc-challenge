@@ -1,0 +1,7 @@
+{
+  "schema": "qiqc-review-contract-smoke/v1",
+  "fixture": {
+    "id": "s01",
+    "code": "import csv, json\nfrom pathlib import Path\n\ndef summarize_measurements(task):\n    with Path(task[\"measurements_path\"]).open(newline=\"\") as source:\n        values = [float(row[\"energy\"]) for row in csv.DictReader(source)]\n    result = {\"samples\": len(values), \"energy_sum\": sum(values)}\n    Path(\"/workspace/result.json\").write_text(json.dumps(result))\n    return result\n"
+  }
+}

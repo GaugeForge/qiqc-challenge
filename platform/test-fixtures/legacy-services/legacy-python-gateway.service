@@ -1,0 +1,21 @@
+[Unit]
+Description=QIQC legacy test fixture legacy-python-gateway
+After=network.target docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/QQ-Challenge/competition-platform
+Environment=PYTHONPATH=/root/QQ-Challenge/competition-platform/platform
+Environment=QIQC_DATA=/root/QQ-Challenge/runtime/legacy-platform-data
+EnvironmentFile=-/root/QQ-Challenge/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/root/QQ-Challenge/competition-platform/platform/.venv/bin/python -m uvicorn qiqc.gateway:factory --factory --host 172.17.0.1 --port 8788 --no-access-log
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=390
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
