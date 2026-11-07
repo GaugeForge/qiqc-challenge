@@ -1,0 +1,35 @@
+[Unit]
+Description=QIQC local staging gateway
+After=network.target qiqc-stage-scanner.service
+
+[Service]
+Type=simple
+User=qiqc-stage-gateway
+Group=qiqc-stage-data
+Environment=QIQC_SHARED_DATA=1
+Environment=QIQC_MODEL=tencent/hy4
+Environment=QIQC_BASELINE=/opt/qiqc-staging/current/baseline-astra-39.json
+WorkingDirectory=/opt/qiqc-staging/current
+ReadWritePaths=/var/lib/qiqc-staging/data
+InaccessiblePaths=-/run/docker.sock -/var/run/docker.sock
+ExecStart=/opt/qiqc-staging/current/gateway -data /var/lib/qiqc-staging/data -provider-env /etc/qiqc-staging/provider.env -listen 127.0.0.1:18889
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0007
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=480
+
+[Install]
+WantedBy=multi-user.target

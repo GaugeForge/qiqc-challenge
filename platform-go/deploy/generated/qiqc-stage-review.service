@@ -1,0 +1,35 @@
+[Unit]
+Description=QIQC local staging review
+After=network.target qiqc-stage-scanner.service
+
+[Service]
+Type=simple
+User=qiqc-stage-review
+Group=qiqc-stage-data
+Environment=QIQC_SHARED_DATA=1
+Environment=QIQC_MODEL=tencent/hy4
+Environment=QIQC_BASELINE=/opt/qiqc-staging/current/baseline-astra-39.json
+WorkingDirectory=/opt/qiqc-staging/current
+ReadWritePaths=/var/lib/qiqc-staging/data
+InaccessiblePaths=-/run/docker.sock -/var/run/docker.sock -/opt/qiqc-staging/science -/var/lib/qiqc-staging/data/uploads -/var/lib/qiqc-staging/data/quarantine -/var/lib/qiqc-staging/data/cache -/var/lib/qiqc-staging/data/scientific -/var/lib/qiqc-staging/data/failure-evidence -/var/lib/qiqc-staging/data/objects
+ExecStart=/opt/qiqc-staging/current/review-worker --db /var/lib/qiqc-staging/data/platform.db --provider https --key-file /etc/qiqc-staging/review.key --model tencent/hy4 --url https://openrouter.ai/api/v1/chat/completions --timeout 120s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0007
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=480
+
+[Install]
+WantedBy=multi-user.target

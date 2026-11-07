@@ -1,0 +1,38 @@
+[Unit]
+Description=QIQC local staging api
+After=network.target qiqc-stage-scanner.service
+
+[Service]
+Type=simple
+User=qiqc-stage-api
+Group=qiqc-stage-data
+Environment=QIQC_SHARED_DATA=1
+Environment=QIQC_MODEL=tencent/hy4
+Environment=QIQC_BASELINE=/opt/qiqc-staging/current/baseline-astra-39.json
+WorkingDirectory=/opt/qiqc-staging/current
+ReadWritePaths=/var/lib/qiqc-staging/data
+InaccessiblePaths=-/run/docker.sock -/var/run/docker.sock
+Environment=QIQC_R2_ENABLED=1
+Environment=QIQC_R2_ENV=/etc/qiqc-staging/api-r2.env
+Environment=QIQC_SCANNER_SOCKET=/run/qiqc-stage-scanner/scanner.sock
+ExecStart=/opt/qiqc-staging/current/api -standalone -listen 127.0.0.1:18890 -data /var/lib/qiqc-staging/data -site /opt/qiqc-staging/current/site -web /opt/qiqc-staging/current/web -adapters /opt/qiqc-staging/current/adapters -reference /opt/qiqc-staging/current/adapters/reference.zip -science-manifest /opt/qiqc-staging/current/science-submissions.json -scanner /opt/qiqc-staging/current/archive.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0007
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=480
+
+[Install]
+WantedBy=multi-user.target

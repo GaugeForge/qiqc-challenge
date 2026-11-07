@@ -1,6 +1,6 @@
 {
-  "version": "2026-10-04.1",
-  "updated": "2026-10-04",
+  "version": "2026-10-21",
+  "updated": "2026-10-14",
   "name": "Agentic Quantum Coding Challenge",
   "shortName": "QIQC Challenge",
   "organizer": "GaugeForge",
@@ -10,23 +10,23 @@
     "awardHook": "$15,000 for the first breakthrough.",
     "cta": "Take the challenge."
   },
-  "contact": "shenhao.miao@gauge-forge.com",
+  "contact": "qiqc@gauge-forge.com",
   "links": {
     "benchmark": "https://gauge-forge.com/qiqc",
     "repository": "https://github.com/GaugeForge/Quantum-Harbor",
     "paper": "https://arxiv.org/abs/2609.17439",
     "registration": "https://kjpjfpccp7ku.jp.larksuite.com/share/base/form/shrjpZPLR75wvuFSSLTKWdGdsGb",
-    "website": "https://challenge.r-era.ai",
+    "website": "https://gaugeforge.github.io/qiqc-challenge/",
     "qr": "https://gauge-forge.com/qiqc",
     "qrPurpose": "Benchmark information, not registration"
   },
   "schedule": {
-    "timezone": "UTC+8",
+    "timezone": "Asia/Singapore",
     "start": {
       "date": "2026-11-08",
       "label": "8 November 2026",
       "status": "founder-confirmed",
-      "time": null
+      "time": "08:00"
     },
     "earlyPr": {
       "date": "2026-10-10",
@@ -44,7 +44,7 @@
       "date": "2026-11-10",
       "label": "10 November 2026",
       "status": "founder-confirmed",
-      "time": null
+      "time": "21:00"
     },
     "demo": {
       "date": "2026-11-12",
@@ -67,13 +67,16 @@
     "teamMin": 1,
     "teamMax": 3,
     "eligibility": "Open to everyone; no academic or professional eligibility restriction",
-    "maxFullEvaluations": 3,
+    "maxFullEvaluations": 1,
     "finalists": 5,
     "license": "AGPL",
     "licenseVersion": "AGPL; exact version to be frozen before registration",
     "dataRights": "Organizer and participating partner organizations may use submitted data and execution trajectories; scope, recipients and publication terms are not yet specified",
     "entryFee": "Free entry (existing partner brief)",
     "publicTasks": 5,
+    "normalTaskCount": 39,
+    "racingTaskCount": 7,
+    "infrastructureTaskCount": 3,
     "eventTaskCount": 49,
     "status": "Confirmed core conditions; detailed competition protocol proposed pending rule freeze"
   },
@@ -88,7 +91,7 @@
     ],
     "placesTotal": 3900,
     "challengerAmount": 15000,
-    "challengerBasis": "First team to strictly exceed the frozen GPT-6 Astra baseline on the hidden leaderboard using HY4",
+    "challengerBasis": "First qualifying team by accepted request time to exceed the frozen full 39-normal-task Codex + Astra baseline",
     "challengerDistribution": "One award to the first qualifying team only",
     "challengerStacking": "To be announced",
     "status": "Amounts and first-qualifying-team-only allocation confirmed by founder; exact first-place clock, baseline, stacking and payment terms pending"
@@ -103,7 +106,8 @@
   },
   "technical": {
     "repoCommit": "1f03d78e959cf02469568250f61f9af88a53146f",
-    "harbor": "0.18.0",
+    "harbor": "0.23.0",
+    "paperHarbor": "0.21.0",
     "python": ">=3.11",
     "submissionApiStatus": "Proposed specification; no event upload service verified"
   }

@@ -3,3 +3,9 @@ node_modules/
 .env*
 *.log
 .DS_Store
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.runtime/
+platform/test-results/

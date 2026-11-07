@@ -1,0 +1,18 @@
+[Unit]
+Description=QIQC local health checks and deduplicated fault/recovery events
+After=qiqc-native-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/qiqc-operations/native_ops.py health
+User=root
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/qiqc-operations /run/qiqc-status
+RuntimeDirectory=qiqc-status
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+TimeoutStartSec=90

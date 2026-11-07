@@ -1,0 +1,11 @@
+[Unit]
+Description=Check QIQC demo TLS renewal every six hours
+
+[Timer]
+OnBootSec=10min
+OnCalendar=*-*-* 00,06,12,18:15:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

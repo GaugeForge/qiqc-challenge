@@ -1,0 +1,14 @@
+{
+  "schema": "qiqc-review-contract-smoke-freeze/v1",
+  "frozen_at": "2026-10-20T04:39:28.009313+00:00",
+  "policy_version": "qiqc-readonly-advisory/v2",
+  "maximum_requests": 1,
+  "timeout_seconds": 120,
+  "purpose": "One newly authorized contract smoke using new local CSV fixture after fixing malformed example. Not a blind quality rerun.",
+  "files": {
+    "competition-platform/platform/tests/review_blindtest/contract-smoke-fixture.json": "442675289ef486d7cdd17fd050c161fd4094ef7bfb2d958e4daf07b1818ab7e7",
+    "competition-platform/platform-go/internal/review/review.go": "7febb28eb8e5b3f9c7890d413eed51e4d4d21d286ea83df9eb3a936c585cac08",
+    "competition-platform/platform-go/internal/review/provider.go": "e55a7bed68e8e7262b6a1f9802b4ca7b51f293aa41eb231a2f7bfc493dc270cc",
+    "competition-platform/platform/qiqc/archive.py": "0033d0e192a32dbbd1983be98876aa00bb1168be5401317df468d71342d1df34"
+  }
+}

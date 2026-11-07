@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7f8" />
+    <title>QIQC Challenge | GaugeForge</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=20261022lb1" />
+    <link rel="stylesheet" href="/responsive.css?v=20261022lb1" />
+    <link rel="stylesheet" href="/platform-assets/app.css?v=20261106runtime2" />
+    <link rel="stylesheet" href="/theme.css?v=20261022lb1" />
+    <script src="/platform-assets/app.js?v=20261106runtime2" defer></script>
+  </head>
+  <body class="competition-console">
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="/">GaugeForge<span aria-hidden="true"></span></a>
+    </header>
+    <div class="account-bar">
+      <span>QIQC CHALLENGE <span class="account-year">/ 2026</span></span>
+      <div class="account-actions">
+        <span class="pill">QIQC 2026</span><span id="identity"></span
+        ><button id="logout" class="text-button" hidden>Sign out</button>
+      </div>
+    </div>
+    <div class="layout">
+      <main id="main">
+        <div id="app"></div>
+        <footer class="console-footer">
+          <a href="/">GaugeForge / QIQC Challenge</a
+          ><span>Asia/Singapore · UTC+8</span>
+        </footer>
+      </main>
+    </div>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+    <dialog id="confirm-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Close dialog">×</button>
+      </form>
+      <span class="eyebrow">CONFIRM EVALUATION</span>
+      <h2>Review your evaluation</h2>
+      <div id="confirm-content"></div>
+      <p class="notice">
+        Confirmation uses one attempt of the selected type and locks this
+        version. Cancelling an accepted evaluation does not refund the attempt.
+      </p>
+      <div class="dialog-actions">
+        <button id="confirm-back" class="button secondary">Go back</button
+        ><button id="confirm-evaluate" class="button primary">
+          Confirm and queue →
+        </button>
+      </div>
+    </dialog>
+    <dialog id="trace-dialog" class="wide-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Close dialog">×</button>
+      </form>
+      <span class="eyebrow">PRIVATE / YOUR TEAM ONLY</span>
+      <h2 id="trace-title">Public-task trace</h2>
+      <p class="muted">
+        Only your team can access this filtered view. Raw hidden-task traces are
+        not available.
+      </p>
+      <pre id="trace-content"></pre>
+    </dialog>
+    <dialog id="detail-dialog" class="wide-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Close dialog">×</button>
+      </form>
+      <h2 id="detail-title">Details</h2>
+      <div id="detail-summary"></div>
+      <details>
+        <summary>Technical record</summary>
+        <pre id="detail-content"></pre>
+      </details>
+    </dialog>
+  </body>
+</html>

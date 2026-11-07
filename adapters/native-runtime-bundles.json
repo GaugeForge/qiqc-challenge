@@ -1,0 +1,21 @@
+{
+  "schema": "qiqc-native-runtime-bundles/v1",
+  "packages": {
+    "deepseek-harness": {
+      "package": "@deepseek-ai/dsh",
+      "version": "0.2.1-rc.2",
+      "node_version": "v24.9.0",
+      "lock_sha256": "ba89bdd50e1bb1e0ffd2fadcac780b3730d57daf4b2f570397236f3252b5b54a",
+      "sha256": "eafe03f5398fc20980538ee5ac3ed826b8278d7de659751f6a93e48292a5dfc1",
+      "bytes": 197724325
+    },
+    "pi-agent": {
+      "package": "@earendil-works/pi-coding-agent",
+      "version": "1.3.0",
+      "node_version": "v24.9.0",
+      "lock_sha256": "406b61400af1401baa30c0bced794bd77301dd9f3b4df5c7b484a7d890565fda",
+      "sha256": "6a081d5e0d61556f5f7c04bbaabaf0f05a735c3e72fe258deae3ce352671b2fc",
+      "bytes": 84382901
+    }
+  }
+}

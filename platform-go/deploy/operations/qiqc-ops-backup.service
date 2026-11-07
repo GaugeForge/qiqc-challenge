@@ -1,0 +1,17 @@
+[Unit]
+Description=QIQC consistent local backup and isolated restore verification
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/qiqc-operations/native_ops.py backup
+User=root
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/qiqc-operations /var/backups/qiqc-native
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=15min

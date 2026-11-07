@@ -1,0 +1,34 @@
+{
+  "profile": {
+    "schema": "qiqc-provider-profile/v1",
+    "id": "infra_minimax_free",
+    "base_url": "https://openrouter.ai/api/v1",
+    "model": "minimax/minimax-m3.1-flash:free",
+    "endpoints": [
+      "responses",
+      "chat/completions"
+    ],
+    "key_file": "/run/qiqc-example/provider.key",
+    "quota_group": "openrouter_infra",
+    "requests_per_minute": 10,
+    "requests_per_day": 50,
+    "allow_paid_fallback": false,
+    "parameter_policy": "passthrough/v1",
+    "authentication": "bearer",
+    "billing": "free"
+  },
+  "identity": {
+    "parameter_policy": "passthrough/v1",
+    "id": "infra_minimax_free",
+    "endpoints": [
+      "responses",
+      "chat/completions"
+    ],
+    "model": "minimax/minimax-m3.1-flash:free",
+    "quota_group": "openrouter_infra",
+    "authentication": "bearer",
+    "billing": "free",
+    "schema": "qiqc-provider-profile-identity/v1",
+    "sha256": "21ec6a4cf510500077ff73fe51ba59bfa94163cd3ba7d898c4cfd87aba5945b7"
+  }
+}

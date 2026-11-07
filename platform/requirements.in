@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+httpx
+pytest
+playwright
+boto3
+e2b
