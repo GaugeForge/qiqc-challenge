@@ -70,7 +70,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .document-copy p { font-size: 14px; color: var(--muted); }
 .supplementary-grid { gap: 24px; }
 .supplementary-item { border-top-color: #cbd5db; }
-.account-bar { background: #fff; border-bottom: 1px solid #e9edef; font-size: 11px; color: #657783; }
+.account-bar { background: #fff; border-bottom: 1px solid #e9edef; font-size: 11px; color: #657783; padding-inline: 64px; }
 .account-bar > span { letter-spacing: .07em; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; }
 .competition-console main { max-width: 1280px; margin-inline: auto; padding: 48px 32px; }
 .competition-console h1 { font-size: clamp(32px,3.4vw,46px); line-height: 1.13; letter-spacing: -.045em; font-weight: 500; }
@@ -221,7 +221,59 @@ dialog::backdrop { background: #13212b66; backdrop-filter: blur(3px); }
  :root body .site-header { height: 78px; padding: 0 64px; }
  :root body .site-header nav { gap: 32px; }
 }
-@media (min-width: 901px) and (max-width: 1100px) {
- :root body .site-header { padding: 0 24px; }
+/* The participant portal loads this file after the challenge page styles.
+   Keep the GaugeForge mark and account bar on the same 64px rail as the
+   public challenge page down to 601px, then use the 20px mobile rail. */
+@media (min-width: 601px) and (max-width: 1100px) {
+ :root body .site-header { height: 78px; padding: 0 64px; }
  :root body .site-header nav { gap: 20px; font-size: 15px; }
+}
+@media (max-width: 600px) {
+ :root body .site-header { padding: 0 20px; }
+}
+
+/* Participant console typography and controls follow the public challenge
+   page. Layout and spacing stay with the console components. */
+.competition-console {
+  --paper: #f5f7f8;
+  --ink: #162725;
+  --muted: #4b605a;
+  --line: #bccbc6;
+  --green: #286e5c;
+  --accent-soft: #b4f889;
+  --white: #fff;
+  --font-site: 'Helvetica Neue', Helvetica, sans-serif;
+}
+.competition-console h1,
+.competition-console h2,
+.competition-console h3 {
+  font-family: var(--font-site);
+  font-weight: 400;
+  color: var(--ink);
+}
+.competition-console .eyebrow {
+  font-family: var(--font-site);
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 1.5px;
+}
+.competition-console .button,
+.competition-console .button.primary {
+  border-radius: 3px;
+  font-weight: 400;
+  box-shadow: none;
+}
+.competition-console .button.primary {
+  background: var(--accent-soft);
+  border-color: var(--green);
+  color: var(--ink);
+}
+.competition-console .button.primary:hover:not(:disabled) {
+  background: #a4eb78;
+  border-color: var(--green);
+  color: var(--ink);
+}
+.competition-console .panel {
+  border-radius: 6px;
+  border-color: var(--line);
 }

@@ -18,7 +18,8 @@
     "registration": "https://kjpjfpccp7ku.jp.larksuite.com/share/base/form/shrjpZPLR75wvuFSSLTKWdGdsGb",
     "website": "https://gaugeforge.github.io/qiqc-challenge/",
     "qr": "https://gauge-forge.com/qiqc",
-    "qrPurpose": "Benchmark information, not registration"
+    "qrPurpose": "Benchmark information, not registration",
+    "submissionPortal": "https://gauge-forge.com/qiqc/submit"
   },
   "schedule": {
     "timezone": "Asia/Singapore",
