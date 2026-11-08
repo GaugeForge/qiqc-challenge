@@ -174,7 +174,7 @@ func (s *Store) AdminAction(token string, a Action, ip string) error {
 					if err = record("retry_task", a.Target, map[string]any{"ordinal": *a.TaskIndex, "state": "attention"}, map[string]any{"ordinal": *a.TaskIndex, "state": "queued", "forced": a.Force}); err != nil {
 						return err
 					}
-					result, err := tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL WHERE "+where, args...)
+					result, err := tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL,failure_category=NULL,failure_phase=NULL,failure_code=NULL WHERE "+where, args...)
 					if err != nil {
 						return err
 					}
@@ -185,17 +185,15 @@ func (s *Store) AdminAction(token string, a Action, ip string) error {
 					if affected != 1 {
 						return problem(409, "只能重试待处理的题目")
 					}
-					_, err = tx.Exec("UPDATE batches SET status='testing' WHERE id=?", a.Target)
-					return err
+					return s.refreshBatchAfterTaskAction(tx, a.Target)
 				}
 				if err = record("retry", a.Target, "attention", map[string]any{"state": "testing", "forced": a.Force}); err != nil {
 					return err
 				}
-				if _, err = tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL WHERE batch_id=? AND state='attention'", a.Target); err != nil {
+				if _, err = tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL,failure_category=NULL,failure_phase=NULL,failure_code=NULL WHERE batch_id=? AND state='attention'", a.Target); err != nil {
 					return err
 				}
-				_, err = tx.Exec("UPDATE batches SET status='testing' WHERE id=?", a.Target)
-				return err
+				return s.refreshBatchAfterTaskAction(tx, a.Target)
 			}
 			if state != "completed" {
 				return problem(409, "只能对已完成成绩作废")
