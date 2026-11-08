@@ -98,7 +98,7 @@ func TestFinalizeScientificFailureArtifactsClosesFinishedController(t *testing.T
 	if _, err = s.DB.Exec("INSERT INTO run_artifacts(run_id,attempt,kind,object_key,object_sha,format,error_class,created) VALUES(?,?,?,?,?,?,?,?)", l.RunID, l.Attempt, "failed-rollout", "private/failure.tar.gz", strings.Repeat("a", 64), "controller-diagnostic", "NativeCandidateFailure", s.now()); err != nil {
 		t.Fatal(err)
 	}
-	receipt := map[string]any{"run_id": l.RunID, "controller_error_class": "native_runner_failed", "resources": map[string]string{"sandbox": "destroyed"}}
+	receipt := map[string]any{"run_id": l.RunID, "phase": "download_complete_failure_rollout", "controller_error_class": "native_runner_failed", "resources": map[string]string{"sandbox": "destroyed"}}
 	if err = os.MkdirAll(filepath.Join(s.Root, "scientific"), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -111,11 +111,11 @@ func TestFinalizeScientificFailureArtifactsClosesFinishedController(t *testing.T
 	if err != nil || n != 1 {
 		t.Fatalf("finalize=%d err=%v", n, err)
 	}
-	var state, why, batchState string
-	if err = s.DB.QueryRow("SELECT r.state,r.error,b.status FROM runs r JOIN batches b ON b.id=? WHERE r.id=?", b["id"], l.RunID).Scan(&state, &why, &batchState); err != nil {
+	var state, why, batchState, category, phase, code string
+	if err = s.DB.QueryRow("SELECT r.state,r.error,b.status,COALESCE(r.failure_category,''),COALESCE(r.failure_phase,''),COALESCE(r.failure_code,'') FROM runs r JOIN batches b ON b.id=? WHERE r.id=?", b["id"], l.RunID).Scan(&state, &why, &batchState, &category, &phase, &code); err != nil {
 		t.Fatal(err)
 	}
-	if state != "attention" || why != "platform:operator_review_required" || batchState != "attention" {
-		t.Fatalf("unexpected terminal failure state: %s %s %s", state, why, batchState)
+	if state != "attention" || why != "harness:operator_review_required" || batchState != "attention" || category != "harness" || phase != "download_complete_failure_rollout" || code != "native_runner_failed" {
+		t.Fatalf("unexpected terminal failure state: %s %s %s %s %s %s", state, why, batchState, category, phase, code)
 	}
 }

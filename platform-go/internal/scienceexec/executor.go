@@ -250,7 +250,15 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 	receipt := map[string]any{"run_id": l.RunID, "attempt": l.Attempt, "mode": l.Mode, "resources": map[string]string{}, "phase": "starting"}
 	resources := receipt["resources"].(map[string]string)
 	receiptPath := filepath.Join(e.Store.Root, "scientific", l.RunID+"_"+strconv.Itoa(l.Attempt)+".json")
-	if err = os.MkdirAll(filepath.Dir(receiptPath), 0700); err != nil {
+	if err = os.MkdirAll(filepath.Dir(receiptPath), 0o750|os.ModeSetgid); err != nil {
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Wait()
+		return err
+	}
+	// The API must verify cleanup receipts before a participant can cancel or
+	// retry a failed task. Keep the directory private to the worker and the
+	// trusted data group, never world-readable.
+	if err = os.Chmod(filepath.Dir(receiptPath), 0o750|os.ModeSetgid); err != nil {
 		_ = cmd.Process.Signal(syscall.SIGTERM)
 		_ = cmd.Wait()
 		return err
@@ -460,6 +468,11 @@ func writeReceipt(path string, v any) error {
 	}
 	if closeErr != nil {
 		return closeErr
+	}
+	// The trusted API process verifies this receipt before allowing a
+	// per-task cancel/retry. Make it group-readable but never world-readable.
+	if err = os.Chmod(tmp, 0o640); err != nil {
+		return err
 	}
 	if err = os.Rename(tmp, path); err != nil {
 		return err

@@ -118,6 +118,9 @@ func TestResourceReceiptSurvivesAtomicRewriteWithoutTokens(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if info, err := os.Stat(p); err != nil || info.Mode().Perm() != 0o640 {
+		t.Fatalf("cleanup receipt must be trusted-group readable, got %v %v", info.Mode().Perm(), err)
+	}
 	data, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)
@@ -127,8 +130,8 @@ func TestResourceReceiptSurvivesAtomicRewriteWithoutTokens(t *testing.T) {
 		t.Fatal("receipt corrupt")
 	}
 	fi, _ := os.Stat(p)
-	if fi.Mode().Perm()&0077 != 0 {
-		t.Fatal("receipt not private")
+	if fi.Mode().Perm()&0o007 != 0 {
+		t.Fatal("receipt is world-accessible")
 	}
 	if strings.Contains(string(data), "token") {
 		t.Fatal("receipt contains capability")

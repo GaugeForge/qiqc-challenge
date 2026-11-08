@@ -54,12 +54,19 @@ WHERE r.state IN ('running','uploading') AND b.mode IN ('scientific','scientific
 		}
 		var receipt struct {
 			RunID     string            `json:"run_id"`
+			Phase     string            `json:"phase"`
 			Resources map[string]string `json:"resources"`
 			Error     string            `json:"controller_error_class"`
+			Detail    string            `json:"controller_error_detail"`
 		}
 		if json.Unmarshal(raw, &receipt) != nil || receipt.RunID != c.run || receipt.Error == "" || len(receipt.Resources) == 0 {
 			continue
 		}
+		diagnostic := DiagnosticFromReceipt(map[string]any{
+			"phase":                   receipt.Phase,
+			"controller_error_class":  receipt.Error,
+			"controller_error_detail": receipt.Detail,
+		})
 		allDestroyed := true
 		for _, state := range receipt.Resources {
 			if state != "destroyed" {
@@ -78,10 +85,10 @@ WHERE r.state IN ('running','uploading') AND b.mode IN ('scientific','scientific
 			if state != "running" && state != "uploading" {
 				return nil
 			}
-			if _, err := tx.Exec("UPDATE runs SET state='attention',error='platform:operator_review_required',owner=NULL,lease_until=NULL WHERE id=? AND attempt=?", c.run, c.attempt); err != nil {
+			if _, err := tx.Exec("UPDATE runs SET state='attention',error=?,failure_category=?,failure_phase=?,failure_code=?,owner=NULL,lease_until=NULL WHERE id=? AND attempt=?", diagnostic.Category+":operator_review_required", diagnostic.Category, diagnostic.Phase, diagnostic.Code, c.run, c.attempt); err != nil {
 				return err
 			}
-			if _, err := tx.Exec("UPDATE attempts SET state='failed',finished=?,error='platform' WHERE run_id=? AND number=?", s.now(), c.run, c.attempt); err != nil {
+			if _, err := tx.Exec("UPDATE attempts SET state='failed',finished=?,error=? WHERE run_id=? AND number=?", s.now(), diagnostic.Category, c.run, c.attempt); err != nil {
 				return err
 			}
 			if _, err := tx.Exec("UPDATE run_tokens SET revoked=1 WHERE run_id=? AND attempt=?", c.run, c.attempt); err != nil {

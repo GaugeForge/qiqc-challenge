@@ -139,15 +139,15 @@ func (s *Store) RunWorker(ctx context.Context, slots int, realExecutor func(cont
 							category = failure.Category
 							retryable = failure.Retryable && category == "platform"
 						}
+						diagnostic := RunFailure{Category: category}
+						if failure != nil {
+							diagnostic.Phase, diagnostic.Code = failure.Phase, failure.Code
+						}
 						// A transient SQLite sidecar/lock error must not orphan a
 						// running row until its long scientific lease expires.
 						var failErr error
 						for attempt := 0; attempt < 3; attempt++ {
 							if failErr = s.Fail(l, category); failErr == nil {
-								diagnostic := RunFailure{Category: category}
-								if failure != nil {
-									diagnostic.Phase, diagnostic.Code = failure.Phase, failure.Code
-								}
 								if diagErr := s.RecordRunDiagnostic(l.RunID, l.Attempt, diagnostic); diagErr != nil {
 									slog.Error("run diagnostic deferred", "run", l.RunID, "attempt", l.Attempt, "error", diagErr)
 								}
@@ -157,6 +157,17 @@ func (s *Store) RunWorker(ctx context.Context, slots int, realExecutor func(cont
 								break
 							}
 							time.Sleep(time.Duration(attempt+1) * 250 * time.Millisecond)
+						}
+						if failErr != nil {
+							// The failure-artifact finalizer may have closed the same
+							// attempt while the executor was returning. Upgrade its
+							// generic marker instead of leaving a stale-lease error.
+							var state string
+							var current int
+							if rowErr := s.DB.QueryRow("SELECT state,attempt FROM runs WHERE id=?", l.RunID).Scan(&state, &current); rowErr == nil && state == "attention" && current == l.Attempt {
+								_, _ = s.UpgradeRunDiagnostic(l.RunID, l.Attempt, diagnostic)
+								failErr = nil
+							}
 						}
 						if failErr != nil {
 							slog.Error("worker fail transition deferred", "run", l.RunID, "attempt", l.Attempt, "error", failErr)
