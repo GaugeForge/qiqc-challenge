@@ -133,6 +133,28 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 	if err := e.Store.CheckVersion(l.SHA256); err != nil {
 		return err
 	}
+	// Write a preflight receipt before any controller is launched. If a later
+	// organizer-side check fails before the bridge starts, the API can prove that
+	// no remote resource exists and allow the team to cancel or retry this task.
+	receipt := map[string]any{
+		"run_id": l.RunID, "attempt": l.Attempt, "mode": l.Mode,
+		"resources": map[string]string{}, "phase": "starting",
+		"controller_error_class": "executor_preflight", "controller_error_detail": "executor_preflight",
+	}
+	resources := receipt["resources"].(map[string]string)
+	receiptPath := filepath.Join(e.Store.Root, "scientific", l.RunID+"_"+strconv.Itoa(l.Attempt)+".json")
+	if err := os.MkdirAll(filepath.Dir(receiptPath), 0o750); err != nil {
+		return err
+	}
+	// The API must verify cleanup receipts before a participant can cancel or
+	// retry a failed task. Keep the directory private to the worker and the
+	// trusted data group, never world-readable.
+	if err := os.Chmod(filepath.Dir(receiptPath), 0o750); err != nil {
+		return err
+	}
+	if err := writeReceipt(receiptPath, receipt); err != nil {
+		return err
+	}
 	selectedModel := "tencent/hy4-preview"
 	if e.Config.ProviderProfile != "" {
 		raw, err := providerprofile.ReadPrivate(e.Config.ProviderProfile, 16384, true)
@@ -214,6 +236,15 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 	if err = cmd.Start(); err != nil {
 		return err
 	}
+	// The controller is now responsible for resource events. Remove the
+	// preflight marker; later failures are classified from controller evidence.
+	delete(receipt, "controller_error_class")
+	delete(receipt, "controller_error_detail")
+	if err = writeReceipt(receiptPath, receipt); err != nil {
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Wait()
+		return &platform.ExecutionFailure{Category: "platform", Phase: "starting", Code: "receipt_write_failed", Message: err.Error(), Retryable: false}
+	}
 	done := make(chan struct{})
 	defer close(done)
 	// Gracefully signal the trusted controller so it kills its E2B resources in
@@ -247,22 +278,6 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 			_ = cmd.Process.Kill()
 		}
 	}()
-	receipt := map[string]any{"run_id": l.RunID, "attempt": l.Attempt, "mode": l.Mode, "resources": map[string]string{}, "phase": "starting"}
-	resources := receipt["resources"].(map[string]string)
-	receiptPath := filepath.Join(e.Store.Root, "scientific", l.RunID+"_"+strconv.Itoa(l.Attempt)+".json")
-	if err = os.MkdirAll(filepath.Dir(receiptPath), 0o750|os.ModeSetgid); err != nil {
-		_ = cmd.Process.Signal(syscall.SIGTERM)
-		_ = cmd.Wait()
-		return err
-	}
-	// The API must verify cleanup receipts before a participant can cancel or
-	// retry a failed task. Keep the directory private to the worker and the
-	// trusted data group, never world-readable.
-	if err = os.Chmod(filepath.Dir(receiptPath), 0o750|os.ModeSetgid); err != nil {
-		_ = cmd.Process.Signal(syscall.SIGTERM)
-		_ = cmd.Wait()
-		return err
-	}
 	var final *result
 	var eventErr error
 	scan := bufio.NewScanner(stdout)

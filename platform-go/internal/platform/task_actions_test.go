@@ -1,6 +1,9 @@
 package platform
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -122,5 +125,32 @@ func TestTaskCancelRejectsUnconfirmedRemoteResource(t *testing.T) {
 	}
 	if runState(t, s, bid, 0) != "attention" {
 		t.Fatal("blocked cancellation changed the task")
+	}
+}
+
+func TestPreflightReceiptAllowsCancelWithoutRemoteResource(t *testing.T) {
+	s := testStore(t)
+	token, bid := taskActionFixture(t, s, "attention")
+	if _, err := s.DB.Exec("UPDATE batches SET mode='scientific' WHERE id=?", bid); err != nil {
+		t.Fatal(err)
+	}
+	var runID string
+	if err := s.DB.QueryRow("SELECT id FROM runs WHERE batch_id=? AND ordinal=0", bid).Scan(&runID); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(s.Root, "scientific", runID+"_1.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	value := map[string]any{"run_id": runID, "attempt": 1, "mode": "scientific", "phase": "starting", "controller_error_class": "executor_preflight", "resources": map[string]string{}}
+	raw, _ := json.Marshal(value)
+	if err := os.WriteFile(path, raw, 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CancelTask(token, bid, 0, "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if runState(t, s, bid, 0) != "cancelled" {
+		t.Fatal("preflight task not cancelled")
 	}
 }

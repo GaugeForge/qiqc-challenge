@@ -143,6 +143,7 @@ func (s *Store) RunWorker(ctx context.Context, slots int, realExecutor func(cont
 						if failure != nil {
 							diagnostic.Phase, diagnostic.Code = failure.Phase, failure.Code
 						}
+						slog.Warn("worker execution failed", "run", l.RunID, "attempt", l.Attempt, "category", category, "error", err)
 						// A transient SQLite sidecar/lock error must not orphan a
 						// running row until its long scientific lease expires.
 						var failErr error
