@@ -766,7 +766,7 @@ if __name__ == "__main__":
         action="store_true",
         help="explicit new template/controller for unfrozen drained candidate; retain immutable prior evidence",
     )
-    p.add_argument("--account-continuous-limit-seconds", type=int, default=3600)
+    p.add_argument("--account-continuous-limit-seconds", type=int, default=86400)
     p.add_argument("--build-plan-sha256")
     p.add_argument("--build-receipt-sha256")
     p.add_argument(

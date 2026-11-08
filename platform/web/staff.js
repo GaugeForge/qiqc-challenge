@@ -387,6 +387,7 @@ function showReviewDetails(v) {
 }
 function showBatchDetails(b) {
   detail("Evaluation details", b);
+  const runs = Array.isArray(b.runs) ? b.runs : [];
   $("#detail-summary").innerHTML =
     recordGrid([
       ["Team", b.team],
@@ -402,7 +403,16 @@ function showBatchDetails(b) {
       .map(([k, v]) => esc(k) + ": " + v)
       .join(
         " · ",
-      )}</p><h3>Recorded failures</h3>${b.errors?.length ? `<div class="table-wrap"><table><thead><tr><th>Task number</th><th>Attempt</th><th>Error code</th></tr></thead><tbody>${b.errors.map((e) => `<tr><td>${e.ordinal + 1}</td><td>${e.attempt}</td><td class="mono">${esc(e.error)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No task errors are recorded.</p>"}<p class="notice">Retry is available only for eligible infrastructure failures. Unconfirmed remote resources must be reconciled first. A retry preserves the original evaluation and attempt ledger.</p>`;
+      )}</p><h3>Recorded failures</h3>${b.errors?.length ? `<div class="table-wrap"><table><thead><tr><th>Task number</th><th>Attempt</th><th>Error code</th></tr></thead><tbody>${b.errors.map((e) => `<tr><td>${e.ordinal + 1}</td><td>${e.attempt}</td><td class="mono">${esc(e.error)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No task errors are recorded.</p>"}${runs.length ? `<h3>Task runs</h3><div class="table-wrap"><table><thead><tr><th>Task</th><th>State</th><th>Attempt</th><th>Reward</th><th>Action</th></tr></thead><tbody>${runs.map((run) => `<tr><td>${esc(String(Number(run.ordinal) + 1))}</td><td>${badge(run.state)}</td><td>${esc(run.attempt ?? "—")}</td><td>${run.reward == null ? "—" : esc(run.reward)}</td><td>${run.state === "attention" ? `<button type="button" class="button primary compact" data-retry-task="${esc(b.id)}:${esc(run.ordinal)}">Force retry this task</button>` : "—"}</td></tr>`).join("")}</tbody></table></div><p class="small muted">Force retry records an audit entry and queues only the selected task. Other task states and the original attempt ledger are preserved.</p>` : ""}<p class="notice">Force retry is available for a confirmed infrastructure failure and clears any stale lease for the selected task before queueing it.</p>`;
+  $("#detail-summary").querySelectorAll("[data-retry-task]").forEach((button) => button.addEventListener("click", async () => {
+    const [id, ordinal] = button.dataset.retryTask.split(":");
+    button.disabled = true;
+    try {
+      await adminAction({ action: "retry_task", target: id, task_index: Number(ordinal), force: true });
+    } finally {
+      button.disabled = false;
+    }
+  }));
 }
 function showAuditDetails(a) {
   detail("Audit entry", a);

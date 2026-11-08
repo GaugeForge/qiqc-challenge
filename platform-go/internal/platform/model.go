@@ -3,11 +3,23 @@ package platform
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"github.com/gaugeforge/qiqc-platform-go/internal/modelproxy"
 )
+
+// modelRouteGroup returns a stable two-way team selector. Runs from the same
+// team always map to the same provider key group; no team identity or secret is
+// exposed to the provider or participant.
+func modelRouteGroup(team string) string {
+	sum := sha256.Sum256([]byte("qiqc-model-route/v1|" + team))
+	if sum[0]&1 == 0 {
+		return "a"
+	}
+	return "b"
+}
 
 func (s *Store) MintModelToken(l Lease, model string) (string, error) {
 	if model == "" {
@@ -39,10 +51,15 @@ func (s *Store) MintModelToken(l Lease, model string) (string, error) {
 }
 func (s *Store) AuthorizeModel(ctx context.Context, token, model string) (modelproxy.Grant, error) {
 	g := modelproxy.Grant{TokenHash: tokenHash(token)}
-	err := s.DB.QueryRowContext(ctx, `SELECT t.run_id,t.attempt,t.model FROM run_tokens t JOIN runs r ON r.id=t.run_id JOIN batches b ON b.id=r.batch_id WHERE t.hash=? AND t.revoked=0 AND t.expires>? AND t.attempt=r.attempt AND r.state='running' AND b.status='testing' AND r.lease_until>?`, g.TokenHash, s.now(), s.now()).Scan(&g.RunID, &g.Attempt, &g.Model)
+	var team string
+	// A sibling task may already need attention while this run is still healthy.
+	// Batch status "attention" must not revoke the model capability of running
+	// siblings; otherwise one failed task stalls the whole evaluation.
+	err := s.DB.QueryRowContext(ctx, `SELECT t.run_id,t.attempt,t.model,b.team_id FROM run_tokens t JOIN runs r ON r.id=t.run_id JOIN batches b ON b.id=r.batch_id WHERE t.hash=? AND t.revoked=0 AND t.expires>? AND t.attempt=r.attempt AND r.state='running' AND b.status IN ('testing','attention') AND r.lease_until>?`, g.TokenHash, s.now(), s.now()).Scan(&g.RunID, &g.Attempt, &g.Model, &team)
 	if err != nil || g.Model != model {
 		return g, &modelproxy.HTTPError{Status: 403, Message: "Invalid run capability"}
 	}
+	g.RouteGroup = modelRouteGroup(team)
 	var n int
 	if err = s.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM usage WHERE run_id=? AND attempt=? AND COALESCE(error_class,'') NOT IN ('client_cancelled_before_upstream','admission_deadline_before_upstream','admission_rejected_before_upstream')", g.RunID, g.Attempt).Scan(&n); err != nil {
 		return g, err
@@ -114,7 +131,7 @@ func (s *Store) ReserveModelRequest(ctx context.Context, g modelproxy.Grant) err
 	defer tx.Rollback()
 	var runID, model string
 	var attempt int
-	err = tx.QueryRowContext(ctx, `SELECT t.run_id,t.attempt,t.model FROM run_tokens t JOIN runs r ON r.id=t.run_id JOIN batches b ON b.id=r.batch_id WHERE t.hash=? AND t.revoked=0 AND t.expires>? AND t.attempt=r.attempt AND r.state='running' AND b.status='testing' AND r.lease_until>?`, g.TokenHash, s.now(), s.now()).Scan(&runID, &attempt, &model)
+	err = tx.QueryRowContext(ctx, `SELECT t.run_id,t.attempt,t.model FROM run_tokens t JOIN runs r ON r.id=t.run_id JOIN batches b ON b.id=r.batch_id WHERE t.hash=? AND t.revoked=0 AND t.expires>? AND t.attempt=r.attempt AND r.state='running' AND b.status IN ('testing','attention') AND r.lease_until>?`, g.TokenHash, s.now(), s.now()).Scan(&runID, &attempt, &model)
 	if err != nil || runID != g.RunID || attempt != g.Attempt || model != g.Model {
 		return &modelproxy.HTTPError{Status: 403, Message: "Invalid run capability"}
 	}

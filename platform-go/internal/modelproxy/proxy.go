@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
@@ -23,6 +24,15 @@ import (
 	"time"
 )
 
+// Backend is one trusted organizer provider credential. Multiple backends let
+// the gateway distribute teams across credentials while routing every run from
+// the same team to the same key group.
+type Backend struct {
+	ID        string
+	BaseURL   string
+	MasterKey string
+}
+
 type Grant struct {
 	RequestCorrelation string `json:"request_correlation,omitempty"`
 	RequestID          string `json:"request_id,omitempty"`
@@ -30,6 +40,10 @@ type Grant struct {
 	Attempt            int    `json:"attempt"`
 	Model              string `json:"model"`
 	TokenHash          string `json:"token_hash"`
+	// RouteGroup is a stable, non-secret team route selector. It lets the
+	// gateway distribute teams across provider credentials while every run
+	// from one team keeps the same key group.
+	RouteGroup string `json:"route_group,omitempty"`
 }
 type Usage struct {
 	InputTokens  *int64 `json:"input_tokens"`
@@ -58,6 +72,7 @@ type Config struct {
 	AllowedToolTypes  []string // defaults to local function/custom tools; no provider web/MCP execution
 	BaseURL           string
 	MasterKey         string
+	Backends          []Backend
 	Client            *http.Client
 	AllowInsecureHTTP bool
 	MaxConcurrent     int
@@ -72,9 +87,10 @@ type Config struct {
 	Reserve           func(context.Context, Grant) error // atomic provider-attempt admission, including in-flight work
 }
 type Proxy struct {
-	cfg    Config
-	client *http.Client
-	slots  chan struct{}
+	cfg      Config
+	client   *http.Client
+	slots    chan struct{}
+	backends []Backend
 }
 
 // UpstreamURL accepts a base or a full supported endpoint and normalizes it
@@ -106,14 +122,34 @@ func New(cfg Config) (*Proxy, error) {
 	if cfg.UpstreamIPFamily == "" {
 		cfg.UpstreamIPFamily = "auto"
 	}
-	normalized, err := UpstreamURL(cfg.BaseURL, "responses")
-	if err != nil {
-		return nil, err
+	if len(cfg.Backends) == 0 {
+		cfg.Backends = []Backend{{ID: "a", BaseURL: cfg.BaseURL, MasterKey: cfg.MasterKey}}
 	}
-	if strings.HasPrefix(normalized, "http:") && !cfg.AllowInsecureHTTP {
-		return nil, errors.New("plaintext upstream requires explicit local-test opt-in")
+	seenBackends := map[string]bool{}
+	for i := range cfg.Backends {
+		backend := &cfg.Backends[i]
+		if backend.BaseURL == "" {
+			backend.BaseURL = cfg.BaseURL
+		}
+		if backend.MasterKey == "" {
+			backend.MasterKey = cfg.MasterKey
+		}
+		if backend.ID == "" {
+			backend.ID = string(rune('a' + i))
+		}
+		if seenBackends[backend.ID] || backend.BaseURL == "" || backend.MasterKey == "" || strings.ContainsAny(backend.MasterKey, "\r\n") {
+			return nil, errors.New("invalid provider backend")
+		}
+		seenBackends[backend.ID] = true
+		normalized, err := UpstreamURL(backend.BaseURL, "responses")
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasPrefix(normalized, "http:") && !cfg.AllowInsecureHTTP {
+			return nil, errors.New("plaintext upstream requires explicit local-test opt-in")
+		}
 	}
-	if cfg.MasterKey == "" || strings.ContainsAny(cfg.MasterKey, "\r\n") || cfg.Authorize == nil || cfg.RecordUsage == nil {
+	if cfg.Authorize == nil || cfg.RecordUsage == nil {
 		return nil, errors.New("missing trusted provider or authorization configuration")
 	}
 	if len(cfg.AllowedToolTypes) == 0 {
@@ -173,7 +209,29 @@ func New(cfg Config) (*Proxy, error) {
 	// A caller-provided client's redirect policy may not forward the master key.
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	client.Jar = nil
-	return &Proxy{cfg: cfg, client: client, slots: make(chan struct{}, cfg.MaxConcurrent)}, nil
+	return &Proxy{cfg: cfg, client: client, slots: make(chan struct{}, cfg.MaxConcurrent), backends: cfg.Backends}, nil
+}
+
+// backendForGrant selects a credential group deterministically. An explicit
+// RouteGroup (stable per team) wins; otherwise the run token hash is used so a
+// single run never flaps between credentials.
+func (p *Proxy) backendForGrant(g Grant) Backend {
+	if len(p.backends) == 1 {
+		return p.backends[0]
+	}
+	if g.RouteGroup != "" {
+		for _, backend := range p.backends {
+			if backend.ID == g.RouteGroup {
+				return backend
+			}
+		}
+	}
+	key := g.RouteGroup
+	if key == "" {
+		key = g.TokenHash
+	}
+	sum := sha256.Sum256([]byte("qiqc-provider-backend/v1|" + key))
+	return p.backends[int(sum[0])%len(p.backends)]
 }
 
 func fail(w http.ResponseWriter, status int, category string) {
@@ -408,7 +466,14 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_json")
 		return
 	}
-	upstream, _ := UpstreamURL(p.cfg.BaseURL, endpoint)
+	// The credential group is fixed for the whole request. Retries never switch
+	// a team to the other key group; only the transport attempt changes.
+	backend := p.backendForGrant(grant)
+	upstream, err := UpstreamURL(backend.BaseURL, endpoint)
+	if err != nil {
+		fail(w, 503, "provider_configuration_error")
+		return
+	}
 	for attempt := 1; attempt <= p.cfg.MaxAttempts; attempt++ {
 		if ctx.Err() != nil {
 			p.stopBeforeUpstream(w, r, ctx, grant)
@@ -434,7 +499,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			fail(w, 503, "provider_configuration_error")
 			return
 		}
-		req.Header.Set("Authorization", "Bearer "+p.cfg.MasterKey)
+		req.Header.Set("Authorization", "Bearer "+backend.MasterKey)
 		req.Header.Set("Content-Type", "application/json")
 		if stream {
 			req.Header.Set("Accept", "text/event-stream")
@@ -477,13 +542,30 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			transportDiagnostic("request", err, attemptCtx, response, grant)
 			status := 504
 			category := "provider_transport_error"
-			if r.Context().Err() != nil {
+			switch {
+			case r.Context().Err() != nil:
 				status = 499
 				category = "client_cancelled"
+			case ctx.Err() != nil:
+				category = "provider_timeout"
 			}
 			if p.record(ctx, UsageRecord{Grant: grant, Status: status, Attempt: attempt, ErrorClass: category}) != nil {
 				fail(w, 503, "usage_record_error")
 				return
+			}
+			// A transport failure (including a 504 surfaced as a connection or
+			// stream error) is retried inside the same attempt budget. It never
+			// becomes a whole-task retry. Context cancellation is terminal.
+			if status == 504 && attempt < p.cfg.MaxAttempts {
+				timer := time.NewTimer(retryDelay("", attempt, p.cfg.MaxRetryAfter))
+				select {
+				case <-timer.C:
+					continue
+				case <-ctx.Done():
+					timer.Stop()
+					p.stopBeforeUpstream(w, r, ctx, grant)
+					return
+				}
 			}
 			fail(w, status, category)
 			return

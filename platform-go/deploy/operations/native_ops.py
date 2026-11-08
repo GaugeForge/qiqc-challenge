@@ -18,7 +18,17 @@ import tempfile
 import time
 import urllib.request
 
-SERVICES = [f"qiqc-native-{name}.service" for name in ("api", "worker", "gateway", "review", "scanner")]
+# The production worker is deliberately split by E2B credential pool.  Keep
+# both pools in the health contract; the retired single-worker unit must not
+# make an otherwise healthy deployment look degraded.
+SERVICES = [
+    "qiqc-native-api.service",
+    "qiqc-native-worker-key2.service",
+    "qiqc-native-worker-key1.service",
+    "qiqc-native-gateway.service",
+    "qiqc-native-review.service",
+    "qiqc-native-scanner.service",
+]
 
 
 def write_json(path, value):

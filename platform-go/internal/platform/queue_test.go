@@ -212,6 +212,35 @@ func TestQueueHeartbeatAndFencingSurviveRestart(t *testing.T) {
 	}
 }
 
+func TestQueueSiblingFailureDoesNotFenceRunningLease(t *testing.T) {
+	s := testStore(t)
+	now := time.Unix(1000, 0)
+	s.Now = func() time.Time { return now }
+	queueBatch(t, s, 2, "codex")
+	first := mustClaim(t, s, "worker-a", 2)
+	second := mustClaim(t, s, "worker-a", 2)
+	if first.RunID == second.RunID {
+		t.Fatal("expected two distinct runs")
+	}
+	if err := s.Fail(*first, "platform"); err != nil {
+		t.Fatal(err)
+	}
+	var state string
+	if err := s.DB.QueryRow("SELECT status FROM batches WHERE id=?", first.BatchID).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "attention" {
+		t.Fatalf("batch state %q, want attention", state)
+	}
+	// A sibling failure must not fence another run that still owns a live lease.
+	if err := s.Heartbeat(*second); err != nil {
+		t.Fatalf("sibling heartbeat after batch attention: %v", err)
+	}
+	if err := s.Fail(*second, "platform"); err != nil {
+		t.Fatalf("sibling failure after batch attention: %v", err)
+	}
+}
+
 func TestQueueRealLossRequiresReconciliationAndReservesSlot(t *testing.T) {
 	s := testStore(t)
 	now := time.Unix(1000, 0)

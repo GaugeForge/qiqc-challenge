@@ -1300,3 +1300,9 @@ summary {
 .leaderboard-scroll::-webkit-scrollbar { width: 10px; }
 .leaderboard-scroll::-webkit-scrollbar-track { background: #e6ece9; }
 .leaderboard-scroll::-webkit-scrollbar-thumb { background: #0b3d2e; border-radius: 5px; }
+.task-panel { margin-top: 12px; border-left: 2px solid var(--line); padding-left: 12px; }
+.task-bulk { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.task-row { display: grid; grid-template-columns: minmax(180px, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.task-row:first-of-type { border-top: 0; }
+.task-row .actions { justify-content: flex-end; }
+@media (max-width: 700px) { .task-row { grid-template-columns: 1fr; } .task-row .actions { justify-content: flex-start; } }

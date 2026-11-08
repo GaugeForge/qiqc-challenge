@@ -93,7 +93,13 @@ func (c Calendar) allow(kind string, now time.Time) error {
 		if c.InfraStartsAt == nil {
 			return problem(409, "Infra 开放时间尚未冻结")
 		}
-		start, end = *c.InfraStartsAt, *c.InfraEndsAt
+		// Infrastructure checks have their own pre-contest window, and remain
+		// available throughout the formal competition window. The phase snapshot
+		// advertises this capability; admission must apply the same rule instead
+		// of continuing to reject infra at the quiet boundary.
+		if now.Before(c.StartsAt) {
+			start, end = *c.InfraStartsAt, *c.InfraEndsAt
+		}
 	} else if kind == "public" && now.Before(c.StartsAt) {
 		return problem(409, "Public tests open when the competition starts.")
 	}

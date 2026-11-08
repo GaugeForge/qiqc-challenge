@@ -55,7 +55,10 @@ func batchView(q queryer, b batch) (map[string]any, error) {
 		// Expose the batch-level interruption, never hidden per-task progress,
 		// raw provider errors, object keys or incomplete scientific scores.
 		result["failure_code"] = "evaluation_paused"
-		result["status_message"] = "Evaluation paused for staff review because a run could not complete. No score has been published. Keep this request ID for support; do not resubmit automatically."
+		result["status_message"] = "Some tasks need attention. They can be cancelled or retried individually; running tasks continue."
+	}
+	if state == "cancelling" {
+		result["status_message"] = "Evaluation cancellation is in progress. Running tasks are stopping; attention tasks can be cancelled individually."
 	}
 	if state == "cancelled" {
 		var quietRuns int
@@ -110,6 +113,13 @@ func batchView(q queryer, b batch) (map[string]any, error) {
 		}
 		result["tasks_ahead"] = ahead
 	}
+	if b.Status == "queued" || b.Status == "testing" || b.Status == "attention" || b.Status == "cancelling" {
+		taskRuns, err := batchTaskRuns(q, b)
+		if err != nil {
+			return nil, err
+		}
+		result["task_runs"] = taskRuns
+	}
 	if b.Status == "completed" {
 		result["score"] = map[string]any{"passed": b.Passed.Int64, "total": count, "mean_seconds": b.Mean.String}
 		// Participant trajectories belong only to the three Public tests. A
@@ -151,6 +161,53 @@ func batchView(q queryer, b batch) (map[string]any, error) {
 	return result, nil
 }
 func decimalOrdinal(n int) string { return strconv.Itoa(n) }
+
+// batchTaskRuns exposes only bounded task state for the authenticated team's
+// active evaluation. It never returns the private task identity, raw provider
+// text, traces or object keys.
+func batchTaskRuns(q queryer, b batch) ([]map[string]any, error) {
+	rows, err := q.Query(`SELECT ordinal,public,state,attempt,COALESCE(error,''),reward,
+       COALESCE(failure_category,''),COALESCE(failure_phase,''),COALESCE(failure_code,'')
+       FROM runs WHERE batch_id=? ORDER BY ordinal`, b.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []map[string]any{}
+	for rows.Next() {
+		var ordinal, public, attempt int
+		var state, reason, category, phase, code string
+		var reward sql.NullInt64
+		if err = rows.Scan(&ordinal, &public, &state, &attempt, &reason, &reward, &category, &phase, &code); err != nil {
+			return nil, err
+		}
+		label := "Task " + decimalOrdinal(ordinal+1)
+		if b.Kind == "public" {
+			label = "Public task " + decimalOrdinal(ordinal+1)
+		} else if b.Kind == "infra" {
+			label = "Validation task"
+		}
+		categoryLabel, phaseLabel, errorCode, message := PublicFailureDetail(state, reason, category, phase, code)
+		canCancel := state == "attention"
+		canRetry := (state == "attention" || (state == "cancelled" && reason == "cancelled:operator")) && b.Status != "cancelling"
+		task := map[string]any{
+			"ordinal": ordinal, "label": label, "state": state, "attempt": attempt,
+			"can_cancel": canCancel, "can_retry": canRetry,
+		}
+		if reward.Valid {
+			task["reward"] = reward.Int64
+		}
+		if message != "" {
+			task["error_category"] = categoryLabel
+			task["error_phase"] = phaseLabel
+			task["error_code"] = errorCode
+			task["error_message"] = message
+		}
+		out = append(out, task)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) Confirm(token, versionID, kind, mode, idem string) (map[string]any, error) {
 	return s.confirmIdentity(func(tx *sql.Tx) (User, error) { return s.session(tx, token) }, versionID, kind, mode, idem, "")
 }

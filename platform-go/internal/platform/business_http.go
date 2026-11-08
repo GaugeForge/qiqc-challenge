@@ -104,6 +104,47 @@ func (s *Store) RegisterBusiness(mux *http.ServeMux, fallback http.Handler) {
 			})(w, r)
 			return
 		}
+		if len(parts) == 2 && parts[1] == "cancel-attention" {
+			endpointHandler("POST", func(w http.ResponseWriter, r *http.Request) error {
+				result, err := s.CancelAttentionTasks(cookieToken(r), parts[0], clientIP(r))
+				if err != nil {
+					return err
+				}
+				respond(w, result)
+				return nil
+			})(w, r)
+			return
+		}
+		if len(parts) == 2 && parts[1] == "retry-attention" {
+			endpointHandler("POST", func(w http.ResponseWriter, r *http.Request) error {
+				result, err := s.RetryAttentionTasks(cookieToken(r), parts[0], clientIP(r))
+				if err != nil {
+					return err
+				}
+				respond(w, result)
+				return nil
+			})(w, r)
+			return
+		}
+		if len(parts) == 4 && parts[1] == "tasks" && (parts[3] == "cancel" || parts[3] == "retry") {
+			endpointHandler("POST", func(w http.ResponseWriter, r *http.Request) error {
+				ordinal, err := strconv.Atoi(parts[2])
+				if err != nil || ordinal < 0 {
+					return problem(404, "题目不存在")
+				}
+				if parts[3] == "cancel" {
+					err = s.CancelTask(cookieToken(r), parts[0], ordinal, clientIP(r))
+				} else {
+					err = s.RetryTask(cookieToken(r), parts[0], ordinal, clientIP(r))
+				}
+				if err != nil {
+					return err
+				}
+				respond(w, map[string]bool{"ok": true})
+				return nil
+			})(w, r)
+			return
+		}
 
 		if len(parts) == 3 && parts[1] == "traces" {
 			endpointHandler("GET", func(w http.ResponseWriter, r *http.Request) error {

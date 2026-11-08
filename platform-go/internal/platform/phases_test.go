@@ -29,6 +29,15 @@ func TestEventPhaseBoundaries(t *testing.T) {
 	if len(competitionPhase.AllowedKinds) != 3 || competitionPhase.AllowedKinds[0] != "infra" || competitionPhase.AllowedKinds[1] != "public" || competitionPhase.AllowedKinds[2] != "full" {
 		t.Fatalf("competition allowed kinds = %#v, want infra/public/full", competitionPhase.AllowedKinds)
 	}
+	if err := c.allow("infra", c.StartsAt); err != nil {
+		t.Fatalf("infra at competition opening rejected: %v", err)
+	}
+	if err := c.allow("infra", c.EndsAt.Add(-time.Second)); err != nil {
+		t.Fatalf("infra during competition rejected: %v", err)
+	}
+	if status(c.allow("infra", c.EndsAt)) != 409 {
+		t.Fatal("infra accepted after competition closes")
+	}
 	if err := c.validate(); err != nil {
 		t.Fatal(err)
 	}

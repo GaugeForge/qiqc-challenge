@@ -1,0 +1,18 @@
+[Unit]
+Description=QIQC trusted terminal-result recovery from preserved failure evidence
+After=qiqc-native-api.service qiqc-native-worker-key2.service
+[Service]
+Type=simple
+ExecStart=/opt/qiqc-staging/venv/bin/python /opt/qiqc-operations/pack_failure_recovery.py
+Restart=always
+RestartSec=5
+User=root
+Group=qiqc-native-data
+UMask=0007
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/qiqc-native-candidate/data
+TimeoutStopSec=30
+[Install]
+WantedBy=multi-user.target

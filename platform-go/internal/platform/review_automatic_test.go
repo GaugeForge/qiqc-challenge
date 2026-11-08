@@ -137,7 +137,12 @@ func TestAutomaticReviewFailClosedAndNeverCharge(t *testing.T) {
 				}
 			}
 			var state, reason string
-			if err := s.DB.QueryRow("SELECT status,reason FROM versions WHERE id=?", v.ID).Scan(&state, &reason); err != nil || (tc.name == "static risk" && (state != "pending_review" || !strings.Contains(reason, "requiring organizer review"))) || (tc.name != "static risk" && (state != "rejected" || !strings.Contains(reason, tc.code))) || strings.Contains(reason, "secret credential") {
+			providerOutage := tc.code == "provider_error" || tc.code == "provider_timeout"
+			if err := s.DB.QueryRow("SELECT status,reason FROM versions WHERE id=?", v.ID).Scan(&state, &reason); err != nil ||
+				(tc.name == "static risk" && (state != "pending_review" || !strings.Contains(reason, "requiring organizer review"))) ||
+				(providerOutage && (state != "pending_review" || !strings.Contains(reason, tc.code))) ||
+				(tc.name != "static risk" && !providerOutage && (state != "rejected" || !strings.Contains(reason, tc.code))) ||
+				strings.Contains(reason, "secret credential") {
 				t.Fatal(state, reason, err)
 			}
 			if tc.name == "static risk" {

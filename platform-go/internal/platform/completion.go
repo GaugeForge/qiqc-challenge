@@ -170,11 +170,11 @@ func (s *Store) RetryZeroResourceStartup(l Lease, reason string) error {
 	})
 }
 
-// RetryPlatformFailure requeues a platform/provider failure after the trusted
-// executor has returned. It never touches scientific/verifier failures (those
-// complete normally with reward 0), and it refuses unresolved worker-loss
-// rows because those still reserve a remote-sandbox slot. The same run may be
-// attempted at most three times before staff intervention is required.
+// RetryPlatformFailure requeues one genuine infrastructure failure after the
+// trusted executor has returned. It never touches model, harness, verifier,
+// evidence or budget failures, and it refuses unresolved worker-loss rows
+// because those still reserve a remote-sandbox slot. A run gets at most one
+// automatic retry; later failures require an explicit team or staff action.
 func (s *Store) RetryPlatformFailure(l Lease, reason string) error {
 	return s.write(func(tx *sql.Tx) error {
 		var state, failure, batchState string
@@ -182,13 +182,13 @@ func (s *Store) RetryPlatformFailure(l Lease, reason string) error {
 		if err := tx.QueryRow(`SELECT r.state,r.error,r.attempt,b.status FROM runs r JOIN batches b ON b.id=r.batch_id WHERE r.id=? AND r.batch_id=?`, l.RunID, l.BatchID).Scan(&state, &failure, &attempt, &batchState); err != nil {
 			return err
 		}
-		if state != "attention" || batchState != "attention" || failure != "platform:operator_review_required" || attempt >= 3 {
+		if state != "attention" || !oneOf(batchState, "attention", "testing") || failure != "platform:operator_review_required" || attempt >= 2 {
 			return errors.New("platform failure is not eligible for automatic retry")
 		}
 		if _, err := tx.Exec("UPDATE runs SET state='queued',error='platform:auto_retry_scheduled',owner=NULL,lease_until=NULL WHERE id=? AND state='attention' AND error=?", l.RunID, failure); err != nil {
 			return err
 		}
-		if _, err := tx.Exec("UPDATE batches SET status='testing' WHERE id=? AND status='attention'", l.BatchID); err != nil {
+		if err := s.refreshBatchAfterTaskAction(tx, l.BatchID); err != nil {
 			return err
 		}
 		_, err := tx.Exec("INSERT INTO audit(id,created,actor,action,object_id,reason) VALUES(?,?,'automatic-worker','platform_retry',?,?)", id(), s.now(), l.RunID, reason)
@@ -382,7 +382,7 @@ func (s *Store) ResumeUploadLease(l Lease) error {
 	}
 	return s.write(func(tx *sql.Tx) error {
 		var n int
-		if err := tx.QueryRow(`SELECT COUNT(*) FROM runs r JOIN attempts a ON a.run_id=r.id AND a.number=r.attempt JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id WHERE r.id=? AND r.batch_id=? AND r.owner=? AND r.attempt=? AND (r.state='uploading' OR (r.state='running' AND b.mode='simulated')) AND a.id=? AND a.state='running' AND b.status IN ('testing','cancelling') AND b.team_id=? AND b.version_id=? AND v.sha256=? AND b.mode=? AND b.kind=? AND r.ordinal=? AND r.public=?`, l.RunID, l.BatchID, l.Owner, l.Attempt, l.AttemptID, l.TeamID, l.VersionID, l.SHA256, l.Mode, l.Kind, l.Ordinal, l.Public).Scan(&n); err != nil {
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM runs r JOIN attempts a ON a.run_id=r.id AND a.number=r.attempt JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id WHERE r.id=? AND r.batch_id=? AND r.owner=? AND r.attempt=? AND (r.state='uploading' OR (r.state='running' AND b.mode='simulated')) AND a.id=? AND a.state='running' AND b.status IN ('testing','cancelling','attention') AND b.team_id=? AND b.version_id=? AND v.sha256=? AND b.mode=? AND b.kind=? AND r.ordinal=? AND r.public=?`, l.RunID, l.BatchID, l.Owner, l.Attempt, l.AttemptID, l.TeamID, l.VersionID, l.SHA256, l.Mode, l.Kind, l.Ordinal, l.Public).Scan(&n); err != nil {
 			return err
 		}
 		if n != 1 {

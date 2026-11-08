@@ -1,10 +1,10 @@
 [Unit]
-Description=Renew QIQC demo IP TLS certificate
+Description=Renew the QIQC public host TLS certificate
 After=network-online.target nginx.service
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/opt/qiqc-certbot/bin/certbot renew --quiet --no-random-sleep-on-renew --cert-name qiqc-demo-ip --deploy-hook /usr/local/lib/qiqc-ops/reload-nginx-certificate
+ExecStart=/opt/qiqc-certbot/bin/certbot renew --quiet --no-random-sleep-on-renew --cert-name qiqc-origin-host --deploy-hook /usr/local/lib/qiqc-ops/reload-nginx-certificate
 TimeoutStartSec=10min
 UMask=0077

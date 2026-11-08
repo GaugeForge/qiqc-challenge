@@ -131,7 +131,7 @@ func (s *Store) claimPool(owner string, slots int, pool string) (*Lease, error) 
 		lease := &Lease{Owner: owner}
 		err = tx.QueryRow(`SELECT r.id,r.batch_id,r.ordinal,r.public,r.attempt,b.team_id,b.version_id,b.kind,b.mode,v.sha256
    FROM runs r JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id
-   WHERE r.state='queued' AND b.status IN ('queued','testing') AND `+poolFilter+` AND
+   WHERE r.state='queued' AND b.status IN ('queued','testing','attention') AND `+poolFilter+` AND
      ((b.kind IN ('infra','public') AND (SELECT COUNT(*) FROM runs rr JOIN batches bb ON bb.id=rr.batch_id WHERE (rr.state IN ('running','uploading') OR (rr.state='attention' AND rr.error=?)) AND bb.kind IN ('infra','public')) < ?) OR
       (b.kind IN ('full','elo') AND (SELECT COUNT(*) FROM runs rr JOIN batches bb ON bb.id=rr.batch_id WHERE (rr.state IN ('running','uploading') OR (rr.state='attention' AND rr.error=?)) AND bb.kind IN ('full','elo')) < ?))
    ORDER BY b.last_dispatch,b.accepted_at,b.id,r.ordinal LIMIT 1`, lostWorkerError, key2Slots, lostWorkerError, formalSlots).Scan(
@@ -198,7 +198,7 @@ func (s *Store) fence(tx *sql.Tx, lease Lease) error {
 	err := tx.QueryRow(`SELECT COUNT(*) FROM runs r JOIN attempts a ON a.run_id=r.id AND a.number=r.attempt
   JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id WHERE r.id=? AND r.batch_id=? AND r.attempt=? AND r.owner=?
   AND a.id=? AND a.state='running' AND r.state IN ('running','uploading')
-  AND r.lease_until>? AND b.status IN ('testing','cancelling')
+  AND r.lease_until>? AND b.status IN ('testing','cancelling','attention')
   AND b.team_id=? AND b.version_id=? AND v.sha256=? AND b.mode=? AND b.kind=? AND r.ordinal=? AND r.public=?`, lease.RunID, lease.BatchID, lease.Attempt, lease.Owner, lease.AttemptID, s.now(), lease.TeamID, lease.VersionID, lease.SHA256, lease.Mode, lease.Kind, lease.Ordinal, lease.Public).Scan(&count)
 	if err != nil {
 		return err
