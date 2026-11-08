@@ -124,6 +124,27 @@ func (s *Store) RecordRunDiagnostic(runID string, attempt int, diagnostic RunFai
 	})
 }
 
+// UpgradeRunDiagnostic replaces only the generic platform attention marker with
+// a trusted category when the failure-artifact finalizer won the race with the
+// executor. It never changes state, a cancelled task or a more specific error.
+func (s *Store) UpgradeRunDiagnostic(runID string, attempt int, diagnostic RunFailure) (bool, error) {
+	if runID == "" || attempt < 1 || diagnostic.Category == "" {
+		return false, nil
+	}
+	updated := false
+	err := s.write(func(tx *sql.Tx) error {
+		result, err := tx.Exec("UPDATE runs SET error=?,failure_category=?,failure_phase=?,failure_code=? WHERE id=? AND attempt=? AND state='attention' AND error='platform:operator_review_required'",
+			diagnostic.Category+":operator_review_required", diagnostic.Category, diagnostic.Phase, diagnostic.Code, runID, attempt)
+		if err != nil {
+			return err
+		}
+		n, err := result.RowsAffected()
+		updated = n == 1
+		return err
+	})
+	return updated, err
+}
+
 func publicPhaseLabel(phase string) string {
 	lower := strings.ToLower(strings.TrimSpace(phase))
 	switch {
