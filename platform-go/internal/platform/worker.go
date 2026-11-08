@@ -133,8 +133,18 @@ func (s *Store) RunWorker(ctx context.Context, slots int, realExecutor func(cont
 				if err != nil {
 					// Upload-only errors keep their durable bundle; never turn them into a rerun.
 					if _, e := os.Stat(filepath.Join(s.Root, "cache", l.RunID, strconv.Itoa(l.Attempt), "pending.json")); os.IsNotExist(e) {
-						if e := s.Fail(l, "platform"); e == nil {
-							_ = s.RetryPlatformFailure(l, "Provider or infrastructure failure; automatic retry scheduled")
+						// A transient SQLite sidecar/lock error must not orphan a
+						// running row until its long scientific lease expires.
+						var failErr error
+						for attempt := 0; attempt < 3; attempt++ {
+							if failErr = s.Fail(l, "platform"); failErr == nil {
+								_ = s.RetryPlatformFailure(l, "Provider or infrastructure failure; automatic retry scheduled")
+								break
+							}
+							time.Sleep(time.Duration(attempt+1) * 250 * time.Millisecond)
+						}
+						if failErr != nil {
+							slog.Error("worker fail transition deferred", "run", l.RunID, "attempt", l.Attempt, "error", failErr)
 						}
 					}
 				}

@@ -35,6 +35,10 @@ REMOTE_FILES = {
     )
 }
 REMOTE_FILES["relay_sandbox.py"] = PROBE + "relay_sandbox.py"
+# DeepSeek's sdk-jsonrpc-server plugin declares this protocol package only as an
+# undeclared runtime import. Ship it as an explicit, digest-bound compatibility
+# overlay so older runtime bundles and future partial builds keep working.
+REMOTE_FILES["dsh-sdk-protocol.tgz"] = PROBE + "dsh-sdk-protocol-0.2.1-rc.2.tgz"
 REMOTE_FILES["harness_archive.py"] = "competition-platform/platform/qiqc/archive.py"
 REMOTE_FILES["native_public_view.py"] = SCIENCE + "native_public_view.py"
 REMOTE_FILES["public_view.py"] = SCIENCE + "public_view.py"

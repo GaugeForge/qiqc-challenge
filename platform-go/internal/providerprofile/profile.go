@@ -207,3 +207,31 @@ func Load(path string) (Profile, Identity, string, error) {
 	}
 	return p, id, k, nil
 }
+
+// LoadMetadata validates the organizer profile and the referenced key's
+// private-file metadata without opening the key.  The API process must be able
+// to validate a trusted formal policy at startup, but it must not receive the
+// provider credential; gateway and review processes load the key themselves.
+func LoadMetadata(path string) (Profile, Identity, error) {
+	var p Profile
+	var id Identity
+	b, e := ReadPrivate(path, 16384, true)
+	if e != nil {
+		return p, id, e
+	}
+	p, id, e = Parse(b)
+	if e != nil {
+		return p, id, e
+	}
+	for current := p.KeyFile; current != "/"; current = filepath.Dir(current) {
+		i, e := os.Lstat(current)
+		if e != nil || i.Mode()&os.ModeSymlink != 0 {
+			return p, id, errors.New("private provider key metadata unavailable")
+		}
+	}
+	i, e := os.Lstat(p.KeyFile)
+	if e != nil || !i.Mode().IsRegular() || i.Size() > 1024 || i.Mode().Perm()&0037 != 0 {
+		return p, id, errors.New("private provider key metadata unavailable")
+	}
+	return p, id, nil
+}

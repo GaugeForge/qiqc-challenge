@@ -666,8 +666,11 @@ function renderLeaderboardInto(root,data) {
   if(u)u.textContent = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Singapore", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(new Date()) + " UTC+8";
   const base = data.baseline;
   if(!table)return;
+  const baselineVerified = base?.verified === true;
+  const baselineStatus = baselineVerified ? "Verified 39-task Astra xhigh baseline" : "Reference pending verification";
+  const baselineAccepted = baselineVerified ? "Organizer verified" : "Awaiting measured baseline";
   table.innerHTML =
-    `<div class="table-wrap leaderboard-scroll" tabindex="0" aria-label="Leaderboard standings"><table><thead><tr><th>Rank</th><th>Team / version</th><th>PASS RATE</th><th>Mean time / task</th><th>Accepted (UTC+8)</th></tr></thead><tbody><tr class="baseline-row"><td><span class="pill green">BASELINE</span></td><td><strong>${esc(base.label)}</strong><div class="sub">Reference pending verification</div></td><td><strong>${base.passed == null ? "—" : base.passed + "/39"}</strong></td><td class="mono">${base.mean == null ? "—" : base.mean + " s"}</td><td class="muted">Awaiting measured baseline</td></tr>${data.teams.map((r) => `<tr class="${r.challenger ? "best-row" : ""}"><td><span class="rank">${String(r.rank).padStart(2, "0")}</span>${r.tie ? '<div class="sub">Tied · judge review</div>' : ""}</td><td><strong class="team-name">${esc(r.team)}</strong><div class="sub mono">${r.sha256.slice(0, 12)}</div>${r.challenger ? '<span class="challenge-mark">First above baseline · provisional</span>' : ""}</td><td><strong>${r.passed}/39</strong></td><td class="mono">${esc(r.mean)} s</td><td>${stamp(r.accepted_at)}</td></tr>`).join("")}</tbody></table></div>${!data.teams.length ? empty("No official results published yet.") : ""}`;
+    `<div class="table-wrap leaderboard-scroll" tabindex="0" aria-label="Leaderboard standings"><table><thead><tr><th>Rank</th><th>Team / version</th><th>PASS RATE</th><th>Mean time / task</th><th>Accepted (UTC+8)</th></tr></thead><tbody><tr class="baseline-row"><td><span class="pill green">BASELINE</span></td><td><strong>${esc(base.label)}</strong><div class="sub">${baselineStatus}</div></td><td><strong>${base.passed == null ? "—" : base.passed + "/39"}</strong></td><td class="mono">${base.mean == null ? "—" : base.mean + " s"}</td><td class="muted">${baselineAccepted}</td></tr>${data.teams.map((r) => `<tr class="${r.challenger ? "best-row" : ""}"><td><span class="rank">${String(r.rank).padStart(2, "0")}</span>${r.tie ? '<div class="sub">Tied · judge review</div>' : ""}</td><td><strong class="team-name">${esc(r.team)}</strong><div class="sub mono">${r.sha256.slice(0, 12)}</div>${r.challenger ? '<span class="challenge-mark">First above baseline · provisional</span>' : ""}</td><td><strong>${r.passed}/39</strong></td><td class="mono">${esc(r.mean)} s</td><td>${stamp(r.accepted_at)}</td></tr>`).join("")}</tbody></table></div>${!data.teams.length ? empty("No official results published yet.") : ""}`;
   // Show the baseline plus ten teams; further rows scroll inside the box.
   const box = root.querySelector(".leaderboard-scroll"), rows = box?.querySelectorAll("tbody tr") || [];
   if (rows.length > 11) box.style.setProperty("--leaderboard-height", box.querySelector("thead").offsetHeight + [...rows].slice(0, 11).reduce((h, r) => h + r.offsetHeight, 0) + 2 + "px");
@@ -863,8 +866,12 @@ let adminBusy = false,
   adminPending = null;
 async function adminAction(data) {
   if (adminBusy) return;
-  const reason = $("#admin-reason").value.trim(),
-    actor = $("#operator").value.trim();
+  let reason = $("#admin-reason").value.trim();
+  const actor = $("#operator").value.trim();
+  if (data.action === "retry_task" && reason.length < 3) {
+    reason = "Force retry selected task after operator review";
+    $("#admin-reason").value = reason;
+  }
   if (reason.length < 3 || !actor)
     return toast(
       "Enter your operator name and an action reason at the top.",
@@ -912,7 +919,11 @@ function batchDetail(batch) {
   host.querySelectorAll("[data-retry-task]").forEach((button) => button.addEventListener("click", async () => {
     const [id, ordinal] = button.dataset.retryTask.split(":");
     button.disabled = true;
-    await adminAction({ action: "retry_task", target: id, task_index: Number(ordinal), force: true });
+    try {
+      await adminAction({ action: "retry_task", target: id, task_index: Number(ordinal), force: true });
+    } finally {
+      button.disabled = false;
+    }
   }));
 }
 function reviewAdviceLabel(a) {

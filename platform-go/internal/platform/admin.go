@@ -139,14 +139,26 @@ func (s *Store) AdminAction(token string, a Action, ip string) error {
 				return err
 			}
 			if a.Action == "retry" || a.Action == "retry_task" {
-				if state != "attention" {
+				if a.Action == "retry" && state != "attention" {
 					return problem(409, "只有待处理平台故障可重试")
+				}
+				if a.Action == "retry_task" && state != "attention" && state != "testing" {
+					return problem(409, "只有待处理或进行中的评测可重试单题")
 				}
 				where := "batch_id=? AND state='attention'"
 				args := []any{a.Target}
 				if a.Action == "retry_task" {
 					if a.TaskIndex == nil || *a.TaskIndex < 0 {
 						return problem(400, "缺少有效题目编号")
+					}
+					var selectedState string
+					if err = tx.QueryRow("SELECT state FROM runs WHERE batch_id=? AND ordinal=?", a.Target, *a.TaskIndex).Scan(&selectedState); errors.Is(err, sql.ErrNoRows) {
+						return problem(404, "题目不存在")
+					} else if err != nil {
+						return err
+					}
+					if selectedState != "attention" {
+						return problem(409, "只能重试待处理的题目")
 					}
 					where += " AND ordinal=?"
 					args = append(args, *a.TaskIndex)
@@ -162,9 +174,16 @@ func (s *Store) AdminAction(token string, a Action, ip string) error {
 					if err = record("retry_task", a.Target, map[string]any{"ordinal": *a.TaskIndex, "state": "attention"}, map[string]any{"ordinal": *a.TaskIndex, "state": "queued", "forced": a.Force}); err != nil {
 						return err
 					}
-					_, err = tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL WHERE "+where, args...)
+					result, err := tx.Exec("UPDATE runs SET state='queued',owner=NULL,lease_until=0,error=NULL WHERE "+where, args...)
 					if err != nil {
 						return err
+					}
+					affected, err := result.RowsAffected()
+					if err != nil {
+						return err
+					}
+					if affected != 1 {
+						return problem(409, "只能重试待处理的题目")
 					}
 					_, err = tx.Exec("UPDATE batches SET status='testing' WHERE id=?", a.Target)
 					return err

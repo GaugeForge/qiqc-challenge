@@ -382,7 +382,7 @@ func (s *Store) ResumeUploadLease(l Lease) error {
 	}
 	return s.write(func(tx *sql.Tx) error {
 		var n int
-		if err := tx.QueryRow(`SELECT COUNT(*) FROM runs r JOIN attempts a ON a.run_id=r.id AND a.number=r.attempt JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id WHERE r.id=? AND r.batch_id=? AND r.owner=? AND r.attempt=? AND (r.state='uploading' OR (r.state='running' AND b.mode='simulated')) AND a.id=? AND a.state='running' AND b.status IN ('testing','cancelling') AND b.team_id=? AND b.version_id=? AND v.sha256=? AND b.mode=? AND b.kind=? AND r.ordinal=? AND r.public=?`, l.RunID, l.BatchID, l.Owner, l.Attempt, l.AttemptID, l.TeamID, l.VersionID, l.SHA256, l.Mode, l.Kind, l.Ordinal, l.Public).Scan(&n); err != nil {
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM runs r JOIN attempts a ON a.run_id=r.id AND a.number=r.attempt JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id WHERE r.id=? AND r.batch_id=? AND r.owner=? AND r.attempt=? AND (r.state='uploading' OR (r.state='running' AND b.mode='simulated')) AND a.id=? AND a.state='running' AND b.status IN ('testing','cancelling','attention') AND b.team_id=? AND b.version_id=? AND v.sha256=? AND b.mode=? AND b.kind=? AND r.ordinal=? AND r.public=?`, l.RunID, l.BatchID, l.Owner, l.Attempt, l.AttemptID, l.TeamID, l.VersionID, l.SHA256, l.Mode, l.Kind, l.Ordinal, l.Public).Scan(&n); err != nil {
 			return err
 		}
 		if n != 1 {

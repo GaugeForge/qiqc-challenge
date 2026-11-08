@@ -52,7 +52,7 @@ func (s *Store) ConfigureFormalExecutionFile(path string) error {
 	if json.Unmarshal(raw, &p) != nil || !p.valid() {
 		return errors.New("formal execution configuration invalid")
 	}
-	profile, identity, _, e := providerprofile.Load(p.ProfilePath)
+	profile, identity, e := providerprofile.LoadMetadata(p.ProfilePath)
 	if e != nil || profile.Model != p.Model || identity.SHA256 != p.ProfileSHA256 {
 		return errors.New("formal provider profile/key unavailable or mismatched")
 	}

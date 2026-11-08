@@ -165,7 +165,7 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 		if policy == nil {
 			return errors.New("formal model policy missing")
 		}
-		profile, identity, _, err := providerprofile.Load(policy.ProfilePath)
+		profile, identity, err := providerprofile.LoadMetadata(policy.ProfilePath)
 		if err != nil || identity.SHA256 != policy.ProfileSHA256 || profile.Model != policy.Model {
 			return errors.New("formal provider unavailable or changed")
 		}
@@ -319,10 +319,12 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 	}
 	// Cancellation stops the trusted controller with SIGTERM. If the controller
 	// still reports every created resource as destroyed, the slot is no longer
-	// uncertain and the cancellation can finalize immediately. Treating this as
-	// a lost worker leaves the batch in "cancelling" forever because Cancel must
-	// retain genuinely unresolved scientific sandboxes for reconciliation.
-	if !unresolved && waitErr != nil && final == nil && len(resources) > 0 {
+	// uncertain and the cancellation can finalize immediately. A controller that
+	// failed before creating any resource is equally safe to close: there is no
+	// remote sandbox to reconcile, and treating it as a normal failure leaves the
+	// batch in "cancelling" until the long task lease expires. Treating either
+	// case as a lost worker leaves the batch stuck forever.
+	if !unresolved && waitErr != nil && final == nil {
 		var batchState string
 		if e.Store.DB.QueryRow("SELECT status FROM batches WHERE id=?", l.BatchID).Scan(&batchState) == nil && batchState == "cancelling" {
 			if err := e.Store.CancelFailedController(l); err == nil {

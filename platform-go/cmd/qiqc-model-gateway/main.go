@@ -22,7 +22,7 @@ func main() {
 	data := flag.String("data", os.Getenv("QIQC_DATA"), "private data directory")
 	env := flag.String("provider-env", os.Getenv("QIQC_PROJECT_ENV"), "private Hy4 credentials file")
 	listen := flag.String("listen", "127.0.0.1:8789", "loopback listen address")
-	maxConcurrent := flag.Int("max-concurrent", 2, "bounded concurrent model requests (1..50)")
+	maxConcurrent := flag.Int("max-concurrent", 2, "bounded concurrent model requests (1..100)")
 	requestTimeout := flag.Duration("request-timeout", 120*time.Second, "bounded total model request deadline (30s..10m)")
 	diagnostic := flag.String("diagnostic-model", "", "explicit free-only infrastructure model; empty retains existing policy")
 	rpm := flag.Int("diagnostic-rpm", 10, "shared diagnostic starts per rolling minute (1..20)")
@@ -38,7 +38,7 @@ func main() {
 		slog.Error("invalid free diagnostic profile")
 		os.Exit(2)
 	}
-	if *maxConcurrent < 1 || *maxConcurrent > 50 {
+	if *maxConcurrent < 1 || *maxConcurrent > 100 {
 		slog.Error("invalid model concurrency")
 		os.Exit(2)
 	}

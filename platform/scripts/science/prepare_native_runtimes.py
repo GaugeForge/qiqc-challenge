@@ -19,6 +19,10 @@ from native_runtime_bundles import PACKAGES, SCHEMA
 
 NODE_SHA = "f52ec50e959d72d5c680d9731420b2661cd2a8070e94c7369b6ddfcd8b7278be"
 NODE_URL = "https://nodejs.org/dist/v24.9.0/node-v24.9.0-linux-x64.tar.xz"
+# DSH's sdk-jsonrpc-server plugin has an undeclared runtime import of this
+# protocol package. Keep it in newly built DeepSeek bundles so a rebuilt
+# snapshot cannot regress existing DeepSeek harness submissions.
+DSH_PROTOCOL_VERSION = "0.2.1-rc.2"
 
 INSTALL = r'''set -eu
 mkdir -p /build/node
@@ -30,9 +34,13 @@ export PATH=/build/node/bin:$PATH
 export npm_config_cache=/tmp/npm-cache npm_config_update_notifier=false
 test "$(node --version)" = v24.9.0
 npm ci --prefix /build --ignore-scripts --legacy-peer-deps --no-audit --no-fund
+if [ "CLI" = "dsh" ]; then
+  npm install --prefix /build --no-save --ignore-scripts --legacy-peer-deps --no-audit --no-fund \
+    @deepseek-ai/dsh-sdk-protocol@DSH_PROTOCOL
+fi
 test "$(/build/node_modules/.bin/CLI --version | tail -n 1)" = VERSION
 tar -czf /build/bundle.tar.gz -C /build node node_modules
-'''.replace("NODE_URL", NODE_URL).replace("NODE_SHA", NODE_SHA)
+'''.replace("NODE_URL", NODE_URL).replace("NODE_SHA", NODE_SHA).replace("DSH_PROTOCOL", DSH_PROTOCOL_VERSION)
 
 
 def main():
@@ -65,7 +73,11 @@ def main():
                                  metadata={"purpose": "qiqc-pinned-runtime-build"})
         report["sandbox_id"] = sandbox.sandbox_id
         save()
-        run("docker info >/dev/null && mkdir -p /opt/qiqc-agent-runtimes /tmp/qiqc-runtime-build")
+        # E2B may report the sandbox ready before the Docker daemon started by
+        # the template's start command has finished booting.  Treat this as a
+        # bounded startup race rather than a runtime-build failure.
+        run("for i in $(seq 1 45); do docker info >/dev/null 2>&1 && break; sleep 1; done; "
+            "docker info >/dev/null && mkdir -p /opt/qiqc-agent-runtimes /tmp/qiqc-runtime-build", 60)
         base = run("docker image inspect qiqcbench-agent:latest --format '{{.Id}}'")
         report["original_agent_image"] = base
         for kind, (package, version) in PACKAGES.items():

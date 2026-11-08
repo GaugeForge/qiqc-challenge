@@ -118,6 +118,32 @@ class NativeSubmittedHarness(BaseAgent):
                 raise RuntimeError('native_runtime_preparation_failed')
             self.runtime_env = {'PATH': '/opt/qiqc-native-runtime/node/bin:'
                 '/opt/qiqc-native-runtime/node_modules/.bin:/usr/local/bin:/usr/bin:/bin'}
+            if manifest['adapter'] == 'deepseek-harness':
+                # @deepseek-ai/dsh-sdk-jsonrpc-server imports this package but
+                # does not declare it, so a bundle built from the published DSH
+                # package tree can omit it. Apply the pinned organizer overlay
+                # before the runtime version check; this is idempotent for
+                # bundles that already contain the package.
+                protocol = await environment.exec(
+                    'test -f /opt/qiqc-native-runtime/node_modules/@deepseek-ai/dsh-sdk-protocol/package.json',
+                    timeout_sec=15)
+                if protocol.return_code != 0:
+                    overlay = Path('/opt/qiqc-controller/dsh-sdk-protocol.tgz')
+                    if overlay.is_symlink() or not overlay.is_file():
+                        raise RuntimeError('native_dsh_protocol_overlay_missing')
+                    await environment.upload_file(overlay, '/tmp/qiqc-dsh-sdk-protocol.tgz')
+                    patched = await environment.exec(
+                        'rm -rf /tmp/qiqc-dsh-protocol-overlay && '
+                        'mkdir -p /tmp/qiqc-dsh-protocol-overlay && '
+                        'tar -xzf /tmp/qiqc-dsh-sdk-protocol.tgz -C /tmp/qiqc-dsh-protocol-overlay && '
+                        'rm -rf /opt/qiqc-native-runtime/node_modules/@deepseek-ai/dsh-sdk-protocol && '
+                        'mv /tmp/qiqc-dsh-protocol-overlay/package '
+                        '/opt/qiqc-native-runtime/node_modules/@deepseek-ai/dsh-sdk-protocol && '
+                        'test -f /opt/qiqc-native-runtime/node_modules/@deepseek-ai/dsh-sdk-protocol/package.json && '
+                        'rm -rf /tmp/qiqc-dsh-protocol-overlay /tmp/qiqc-dsh-sdk-protocol.tgz',
+                        timeout_sec=60)
+                    if patched.return_code != 0:
+                        raise RuntimeError('native_dsh_protocol_overlay_failed')
         # Check the organizer-managed execution snapshot. The manifest accepts a
         # compatibility window, while the E2B snapshot remains immutable until
         # a separately verified runtime bundle is published. No npm/pip
