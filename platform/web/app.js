@@ -562,6 +562,22 @@ async function refreshTracePanel(batchID) {
     renderTeamData();
   }
 }
+function taskListHTML(batch) {
+  if (batch.status === "queued") return "";
+  const tasks = Array.isArray(batch.task_runs) ? batch.task_runs : [];
+  if (!tasks.length) return "";
+  const attention = tasks.filter((t) => t.state === "attention").length;
+  const retryable = tasks.filter((t) => t.can_retry).length;
+  const bulk = `${attention ? `<button type="button" class="button secondary compact" data-cancel-attention="${esc(batch.id)}">Cancel ${attention} attention task${attention === 1 ? "" : "s"}</button>` : ""}${retryable ? `<button type="button" class="button primary compact" data-retry-attention="${esc(batch.id)}">Retry ${retryable} affected task${retryable === 1 ? "" : "s"}</button>` : ""}`;
+  const rows = tasks.map((t) => {
+    const ordinal = Number(t.ordinal);
+    const label = esc(t.label || `Task ${ordinal + 1}`);
+    const actions = `${t.can_cancel ? `<button type="button" class="text-button small" data-task-cancel="${esc(batch.id)}:${ordinal}">Cancel</button>` : ""}${t.can_retry ? `<button type="button" class="text-button small" data-task-retry="${esc(batch.id)}:${ordinal}">Retry</button>` : ""}`;
+    const location = t.error_code ? `<div class="sub mono">${esc(t.error_code)}${t.error_phase ? ` · ${esc(t.error_phase)}` : ""}</div><div class="sub">${esc(t.error_message || "")}</div>` : "";
+    return `<div class="task-row"><div><strong>${label}</strong><div class="sub">Attempt ${esc(t.attempt ?? "—")}${t.reward != null ? ` · reward ${esc(t.reward)}` : ""}</div>${location}</div><div>${badge(t.state)}</div><div class="actions">${actions}</div></div>`;
+  }).join("");
+  return `<div class="task-panel"><div class="task-bulk">${bulk}</div>${rows}</div>`;
+}
 function renderTeamData() {
   const q = user.quotas;
   $("#quota-stats").innerHTML =
@@ -604,7 +620,7 @@ function renderTeamData() {
     ? `<div class="table-wrap"><table><thead><tr><th>Version / SHA-256</th><th>Review status</th><th>Uploaded (UTC+8)</th><th>Feedback</th></tr></thead><tbody>${versions.map((v) => `<tr><td><div class="primary-text">${esc(v.name)}</div><div class="sub mono">${v.sha256.slice(0, 16)}</div></td><td>${badge(v.status)}</td><td>${stamp(v.created)}</td><td><div class="small">${esc(reviewReason(v))}</div><div class="sub">${v.files} files · ${v.risk_count} static findings</div>${versionReviewHTML(v)}</td></tr>`).join("")}</tbody></table></div>`
     : empty("No submissions yet. Download an adapter template to get started.");
   $("#batch-list").innerHTML = batches.length
-    ? `<div class="table-wrap"><table><thead><tr><th>Evaluation / version</th><th>Status</th><th>Result</th><th>Accepted (UTC+8)</th><th>Actions</th></tr></thead><tbody>${batches.map((b) => `<tr><td><div class="primary-text">${labels[b.kind]}</div><div class="sub mono" title="Evaluation ID">ID ${esc(b.id)}</div><div class="sub">${modeLabel(b.mode)}${b.task_time_limits === "native" ? " · original task time limits" : b.bounded_scientific ? ` · agent limit per task ${b.agent_budget_seconds} s` : b.catalog_acceptance ? ` · single-task check (${b.agent_budget_seconds === 180 ? 180 : 300} s）` : ""} · <span class="mono">${b.sha256.slice(0, 8)}</span></div></td><td>${badge(b.status)}${b.status_message ? `<div class="sub">${esc(b.status_message)}</div>` : ""}${b.status === "queued" ? `<div class="sub">Ahead: ${b.tasks_ahead} tasks awaiting dispatch</div>` : ""}</td><td>${b.score ? `<strong>${b.score.passed}/${b.score.total}</strong><div class="sub mono">${esc(b.score.mean_seconds)} s / task</div>` : '<span class="muted">—</span>'}${b.invalid ? '<div class="sub danger-text">Score invalidated</div>' : ""}</td><td>${stamp(b.accepted_at)}</td><td><div class="actions">${b.kind === "public" ? `<button class="button primary compact" data-trace-open="${esc(b.id)}">View traces</button>` : ""}${b.kind === "public" ? b.public_runs.map((r) => `<button class="button secondary compact" data-trace="${b.id}" data-ordinal="${r.ordinal}">${esc(r.label || `Public task ${r.ordinal + 1}`)}</button>`).join("") : ""}${["queued", "testing"].includes(b.status) ? `<button class="text-button small" data-cancel="${b.id}">Cancel</button>` : ""}</div>${b.kind === "public" && b.public_runs.length ? '<div class="sub">Your public-test traces</div>' : ""}</td></tr>`).join("")}</tbody></table></div>`
+    ? `<div class="table-wrap"><table><thead><tr><th>Evaluation / version</th><th>Status</th><th>Result</th><th>Accepted (UTC+8)</th><th>Actions</th></tr></thead><tbody>${batches.map((b) => `<tr><td><div class="primary-text">${labels[b.kind]}</div><div class="sub mono" title="Evaluation ID">ID ${esc(b.id)}</div><div class="sub">${modeLabel(b.mode)}${b.task_time_limits === "native" ? " · original task time limits" : b.bounded_scientific ? ` · agent limit per task ${b.agent_budget_seconds} s` : b.catalog_acceptance ? ` · single-task check (${b.agent_budget_seconds === 180 ? 180 : 300} s）` : ""} · <span class="mono">${b.sha256.slice(0, 8)}</span></div></td><td>${badge(b.status)}${b.status_message ? `<div class="sub">${esc(b.status_message)}</div>` : ""}${b.status === "queued" ? `<div class="sub">Ahead: ${b.tasks_ahead} tasks awaiting dispatch</div>` : ""}${taskListHTML(b)}</td><td>${b.score ? `<strong>${b.score.passed}/${b.score.total}</strong><div class="sub mono">${esc(b.score.mean_seconds)} s / task</div>` : '<span class="muted">—</span>'}${b.invalid ? '<div class="sub danger-text">Score invalidated</div>' : ""}</td><td>${stamp(b.accepted_at)}</td><td><div class="actions">${b.kind === "public" ? `<button class="button primary compact" data-trace-open="${esc(b.id)}">View traces</button>` : ""}${b.kind === "public" ? b.public_runs.map((r) => `<button class="button secondary compact" data-trace="${b.id}" data-ordinal="${r.ordinal}">${esc(r.label || `Public task ${r.ordinal + 1}`)}</button>`).join("") : ""}${["queued", "testing", "attention"].includes(b.status) ? `<button class="text-button small" data-cancel="${b.id}">Cancel evaluation</button>` : ""}</div>${b.kind === "public" && b.public_runs.length ? '<div class="sub">Your public-test traces</div>' : ""}</td></tr>`).join("")}</tbody></table></div>`
     : empty(
         "No evaluations yet. Upload a harness to start the automatic workflow.",
       );
@@ -630,6 +646,58 @@ function renderTeamData() {
           }
         }),
     );
+  const taskAction = async (button, path, okText) => {
+    button.disabled = true;
+    try {
+      await api(path, { method: "POST" });
+      toast(okText);
+      await refresh();
+    } catch (err) {
+      toast(err.message, true);
+      button.disabled = false;
+    }
+  };
+  $("#batch-list")
+    .querySelectorAll("[data-task-cancel], [data-task-retry]")
+    .forEach((button) => {
+      const [batch, ordinal] = (button.dataset.taskCancel || button.dataset.taskRetry).split(":");
+      const action = button.dataset.taskCancel ? "cancel" : "retry";
+      button.onclick = () => taskAction(
+        button,
+        `/batches/${encodeURIComponent(batch)}/tasks/${encodeURIComponent(ordinal)}/${action}`,
+        action === "cancel" ? "Task cancelled. Running and queued tasks were not affected." : "Task queued again. No extra evaluation attempt was charged.",
+      );
+    });
+  $("#batch-list")
+    .querySelectorAll("[data-cancel-attention]")
+    .forEach((button) => {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const result = await api(`/batches/${encodeURIComponent(button.dataset.cancelAttention)}/cancel-attention`, { method: "POST" });
+          toast(`Cancelled ${result.cancelled || 0} attention task${result.cancelled === 1 ? "" : "s"}.${result.blocked ? ` ${result.blocked} task${result.blocked === 1 ? "" : "s"} still need resource reconciliation.` : ""}`);
+          await refresh();
+        } catch (err) {
+          toast(err.message, true);
+          button.disabled = false;
+        }
+      };
+    });
+  $("#batch-list")
+    .querySelectorAll("[data-retry-attention]")
+    .forEach((button) => {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          const result = await api(`/batches/${encodeURIComponent(button.dataset.retryAttention)}/retry-attention`, { method: "POST" });
+          toast(`Queued ${result.retried || 0} affected task${result.retried === 1 ? "" : "s"}.${result.skipped ? ` ${result.skipped} task${result.skipped === 1 ? "" : "s"} remain blocked pending remote cleanup.` : ""} No extra evaluation attempt was charged.`);
+          await refresh();
+        } catch (err) {
+          toast(err.message, true);
+          button.disabled = false;
+        }
+      };
+    });
   $("#batch-list")
     .querySelectorAll("[data-trace]")
     .forEach(

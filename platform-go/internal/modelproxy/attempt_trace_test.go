@@ -214,8 +214,16 @@ func TestAttemptTraceRetryStartsFreshAndUnknownTimingIsExplicit(t *testing.T) {
 	})}
 	perform(build(t, cfg), "/v1/responses", `{"model":"hy4-test"}`)
 	logs := decodedAttemptLogs(t, buffer)
-	if len(logs) != 1 || logs[0]["upstream_attempt"] != float64(2) || logs[0]["upstream_peer_ip"] != "192.0.2.2" || logs[0]["upstream_local_port"] != float64(40002) || logs[0]["upstream_first_response_byte_ms"] != float64(-1) || logs[0]["upstream_response_headers_ms"] != float64(-1) || logs[0]["upstream_response_body_bytes"] != float64(0) {
-		t.Fatalf("retry reused prior observations: %+v", logs)
+	if len(logs) != 2 {
+		t.Fatalf("transport retry attempts=%d %+v", len(logs), logs)
+	}
+	for index, entry := range logs {
+		wantAttempt := float64(index + 2)
+		wantIP := fmt.Sprintf("192.0.2.%d", index+2)
+		wantPort := float64(40002 + index)
+		if entry["upstream_attempt"] != wantAttempt || entry["upstream_peer_ip"] != wantIP || entry["upstream_local_port"] != wantPort || entry["upstream_first_response_byte_ms"] != float64(-1) || entry["upstream_response_headers_ms"] != float64(-1) || entry["upstream_response_body_bytes"] != float64(0) {
+			t.Fatalf("retry reused prior observations: %+v", logs)
+		}
 	}
 	for _, secret := range []string{"private-http-error-body", "private-url", "private-key", "api_key"} {
 		if strings.Contains(buffer.String(), secret) {

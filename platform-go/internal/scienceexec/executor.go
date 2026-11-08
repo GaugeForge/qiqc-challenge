@@ -271,7 +271,7 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 			receipt["phase"] = v.Phase
 			if v.Phase == "uploading_rollout" {
 				if x := e.Store.BeginUpload(l); x != nil {
-					eventErr = x
+					eventErr = &platform.ExecutionFailure{Category: "platform", Phase: "uploading_rollout", Code: "begin_upload_failed", Message: x.Error(), Retryable: true}
 					_ = cmd.Process.Signal(syscall.SIGTERM)
 				}
 			}
@@ -289,7 +289,8 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 			final = v.Result
 		}
 		if x := writeReceipt(receiptPath, receipt); x != nil {
-			eventErr = x
+			phase, _ := receipt["phase"].(string)
+			eventErr = &platform.ExecutionFailure{Category: "platform", Phase: phase, Code: "receipt_write_failed", Message: x.Error(), Retryable: false}
 			_ = cmd.Process.Signal(syscall.SIGTERM)
 		}
 	}
@@ -343,27 +344,53 @@ func (e *Executor) Run(ctx context.Context, l platform.Lease) error {
 		return errors.New("sandbox cleanup unconfirmed; reconciliation required")
 	}
 	if eventErr != nil {
-		return eventErr
+		return classifyExecutionFailure(receipt, eventErr, "", true)
 	}
 	if scanErr != nil {
-		return scanErr
+		return classifyExecutionFailure(receipt, scanErr, "platform", true)
 	}
 	if waitErr != nil {
-		return errors.New("scientific controller terminated; inspect resource receipt")
+		return classifyExecutionFailure(receipt, errors.New("scientific controller terminated before producing a trusted result"), "", true)
 	}
 	if err = validateCatalogBudget(final, target); err != nil {
-		return err
+		return classifyExecutionFailure(receipt, err, "platform", false)
 	}
 	if err = validateResult(final, l); err != nil {
-		return err
+		category := "harness"
+		if final != nil && final.VerifierExit != 0 {
+			category = "verifier"
+		}
+		return classifyExecutionFailure(receipt, err, category, false)
 	}
 	if final.Rollout.Pending {
 		if err = e.Store.PromoteScientificPending(l); err != nil {
-			return err
+			return classifyExecutionFailure(receipt, err, "evidence", false)
 		}
-		return e.Store.CompleteScientificPending(context.Background(), l, final.Reward, fmt.Sprintf("%.6f", final.Runtime), final.Rollout.SHA)
+		if err = e.Store.CompleteScientificPending(context.Background(), l, final.Reward, fmt.Sprintf("%.6f", final.Runtime), final.Rollout.SHA); err != nil {
+			return classifyExecutionFailure(receipt, err, "evidence", false)
+		}
+		return nil
 	}
-	return errors.New("scientific bridge did not produce durable pending upload")
+	return classifyExecutionFailure(receipt, errors.New("scientific bridge did not produce durable pending upload"), "evidence", false)
+}
+
+// classifyExecutionFailure attaches a bounded category to the trusted receipt.
+// Only a genuine platform/startup failure is eligible for the one automatic
+// retry; every model, harness, verifier, evidence and budget outcome goes to
+// attention without rerunning the Agent.
+func classifyExecutionFailure(receipt map[string]any, err error, category string, retryable bool) error {
+	if err == nil {
+		return nil
+	}
+	if failure, ok := platform.AsExecutionFailure(err); ok {
+		return failure
+	}
+	failure := platform.NewExecutionFailure(receipt, err.Error(), retryable)
+	if category != "" {
+		failure.Category = category
+		failure.Retryable = retryable && category == "platform"
+	}
+	return failure
 }
 func validAcceptanceEarlyStop(r *result) bool {
 	return r != nil && r.AcceptanceEarlyStopVerified &&

@@ -116,6 +116,7 @@ func Open(path string) (*Store, error) {
 	for _, column := range []struct{ table, name, kind string }{
 		{"audit", "session_fingerprint", "TEXT"}, {"audit", "ip", "TEXT"},
 		{"usage", "request_id", "TEXT"}, {"usage", "request_correlation", "TEXT"}, {"usage", "upstream_attempt", "INTEGER"}, {"usage", "error_class", "TEXT"},
+		{"runs", "failure_category", "TEXT"}, {"runs", "failure_phase", "TEXT"}, {"runs", "failure_code", "TEXT"},
 	} {
 		name := column.name
 		rows, e := db.Query("PRAGMA table_info(" + column.table + ")")

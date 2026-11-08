@@ -131,7 +131,7 @@ func (s *Store) claimPool(owner string, slots int, pool string) (*Lease, error) 
 		lease := &Lease{Owner: owner}
 		err = tx.QueryRow(`SELECT r.id,r.batch_id,r.ordinal,r.public,r.attempt,b.team_id,b.version_id,b.kind,b.mode,v.sha256
    FROM runs r JOIN batches b ON b.id=r.batch_id JOIN versions v ON v.id=b.version_id
-   WHERE r.state='queued' AND b.status IN ('queued','testing') AND `+poolFilter+` AND
+   WHERE r.state='queued' AND b.status IN ('queued','testing','attention') AND `+poolFilter+` AND
      ((b.kind IN ('infra','public') AND (SELECT COUNT(*) FROM runs rr JOIN batches bb ON bb.id=rr.batch_id WHERE (rr.state IN ('running','uploading') OR (rr.state='attention' AND rr.error=?)) AND bb.kind IN ('infra','public')) < ?) OR
       (b.kind IN ('full','elo') AND (SELECT COUNT(*) FROM runs rr JOIN batches bb ON bb.id=rr.batch_id WHERE (rr.state IN ('running','uploading') OR (rr.state='attention' AND rr.error=?)) AND bb.kind IN ('full','elo')) < ?))
    ORDER BY b.last_dispatch,b.accepted_at,b.id,r.ordinal LIMIT 1`, lostWorkerError, key2Slots, lostWorkerError, formalSlots).Scan(

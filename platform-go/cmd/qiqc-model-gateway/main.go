@@ -28,6 +28,7 @@ func main() {
 	rpm := flag.Int("diagnostic-rpm", 10, "shared diagnostic starts per rolling minute (1..20)")
 	daily := flag.Int("diagnostic-daily-cap", 50, "shared conservative daily request cap (1..1000)")
 	profilePath := flag.String("provider-profile", "", "private organizer provider profile with key reference")
+	profilePath2 := flag.String("provider-profile-2", "", "optional second provider profile for team-stable key routing")
 	ipFamily := flag.String("upstream-ip-family", os.Getenv("QIQC_MODEL_UPSTREAM_IP_FAMILY"), "upstream IP family: auto (default), ipv4, ipv6")
 	flag.Parse()
 	if _, err := modelproxy.UpstreamNetwork(*ipFamily); err != nil {
@@ -52,6 +53,8 @@ func main() {
 	}
 	values := map[string]string{}
 	var profile providerprofile.Profile
+	backends := []modelproxy.Backend{}
+	var secondaryProfile *providerprofile.Profile
 	if *profilePath != "" {
 		var key string
 		var e error
@@ -61,39 +64,63 @@ func main() {
 			os.Exit(2)
 		}
 		values["HY_URL"], values["HY_API"] = profile.BaseURL, key
+		backends = append(backends, modelproxy.Backend{ID: "a", BaseURL: profile.BaseURL, MasterKey: key})
+		if *profilePath2 != "" {
+			var secondaryKey string
+			secondary, _, secondaryKey, err := providerprofile.Load(*profilePath2)
+			if err != nil || secondary.Model != profile.Model || secondary.Billing != profile.Billing || strings.Join(secondary.Endpoints, ",") != strings.Join(profile.Endpoints, ",") || (*diagnostic != "" && secondary.Billing != "free") {
+				slog.Error("second provider profile is incompatible")
+				os.Exit(2)
+			}
+			secondaryProfile = &secondary
+			backends = append(backends, modelproxy.Backend{ID: "b", BaseURL: secondary.BaseURL, MasterKey: secondaryKey})
+		} else if *env != "" {
+			// A profile may be paired with one secondary env credential. This is
+			// the HY_API_2/HY_URL_2 route used to spread team load without
+			// changing the formal profile identity.
+			if secondary, e := readProviderEnv(*env); e == nil && secondary["HY_API_2"] != "" && secondary["HY_URL_2"] != "" {
+				backends = append(backends, modelproxy.Backend{ID: "b", BaseURL: secondary["HY_URL_2"], MasterKey: secondary["HY_API_2"]})
+			}
+		}
+		// When the private env file carries both HY_API/HY_URL and
+		// HY_API_2/HY_URL_2, those are the two organizer keys the operator asked
+		// to mix. The profile still controls model, endpoints and quota policy.
+		if *env != "" {
+			if envValues, e := readProviderEnv(*env); e == nil && envValues["HY_URL"] != "" && envValues["HY_API"] != "" && envValues["HY_URL_2"] != "" && envValues["HY_API_2"] != "" {
+				backends = []modelproxy.Backend{
+					{ID: "a", BaseURL: envValues["HY_URL"], MasterKey: envValues["HY_API"]},
+					{ID: "b", BaseURL: envValues["HY_URL_2"], MasterKey: envValues["HY_API_2"]},
+				}
+				secondaryProfile = nil
+			}
+		}
 	} else {
-		info, err := os.Stat(*env)
-		if err != nil || info.Mode().Perm()&0077 != 0 {
+		var e error
+		values, e = readProviderEnv(*env)
+		if e != nil {
 			slog.Error("provider file must be private 0600")
 			os.Exit(2)
 		}
-		b, err := os.ReadFile(*env)
-		if err != nil {
-			slog.Error("provider config unavailable")
+		// Keep the primary pair authoritative; the suffixed pair is only a
+		// fallback for the frozen production file naming.
+		primaryURL, primaryKey := values["HY_URL"], values["HY_API"]
+		if primaryURL == "" || primaryKey == "" {
+			primaryURL, primaryKey = values["HY_URL_2"], values["HY_API_2"]
+		}
+		if primaryURL == "" || primaryKey == "" {
+			slog.Error("provider config missing primary credential")
 			os.Exit(2)
 		}
-
-		for _, line := range strings.Split(string(b), "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "#") {
-				continue
-			}
-			k, v, ok := strings.Cut(strings.TrimPrefix(line, "export "), "=")
-			if ok {
-				values[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), "\"'")
-			}
+		backends = append(backends, modelproxy.Backend{ID: "a", BaseURL: primaryURL, MasterKey: primaryKey})
+		if values["HY_URL_2"] != "" && values["HY_API_2"] != "" && (values["HY_URL_2"] != primaryURL || values["HY_API_2"] != primaryKey) {
+			backends = append(backends, modelproxy.Backend{ID: "b", BaseURL: values["HY_URL_2"], MasterKey: values["HY_API_2"]})
 		}
-		// The production VPS keeps the frozen provider under the suffixed names
-		// so it cannot be confused with an old staging credential. Normalize only
-		// inside this private process; no secret is exposed through the API.
-		if values["HY_API"] == "" {
-			values["HY_API"] = values["HY_API_2"]
-		}
-		if values["HY_URL"] == "" {
-			values["HY_URL"] = values["HY_URL_2"]
-		}
-
 	}
+	if len(backends) == 0 {
+		slog.Error("no provider backend configured")
+		os.Exit(2)
+	}
+	slog.Info("provider backends configured", "count", len(backends))
 	store, err := platform.Open(filepath.Join(*data, "platform.db"))
 	if err != nil {
 		slog.Error("database unavailable")
@@ -119,13 +146,33 @@ func main() {
 			return store.ReserveModelRequest(ctx, g)
 		}
 	}
-	cfg := modelproxy.Config{BaseURL: values["HY_URL"], MasterKey: values["HY_API"], Authorize: authorize, Reserve: reserve, RecordUsage: store.RecordModelUsage, RequestTimeout: *requestTimeout, MaxConcurrent: *maxConcurrent, UpstreamIPFamily: *ipFamily}
+	cfg := modelproxy.Config{Backends: backends, Authorize: authorize, Reserve: reserve, RecordUsage: store.RecordModelUsage, RequestTimeout: *requestTimeout, MaxConcurrent: *maxConcurrent, UpstreamIPFamily: *ipFamily}
+	if *profilePath == "" {
+		if model := strings.TrimSpace(values["HY_MODEL"]); model != "" {
+			cfg.RequiredModel = model
+		}
+	}
 	if *profilePath != "" {
 		cfg.RequiredModel = profile.Model
 		cfg.AllowedEndpoints = profile.Endpoints
 		cfg.PublicUpstream = true
+		type quota struct {
+			group string
+			rpm   int
+			daily int
+		}
+		quotas := map[string]quota{"a": {profile.QuotaGroup, profile.RPM, profile.Daily}}
+		if secondaryProfile != nil {
+			quotas["b"] = quota{secondaryProfile.QuotaGroup, secondaryProfile.RPM, secondaryProfile.Daily}
+		} else if len(backends) > 1 {
+			quotas["b"] = quota{profile.QuotaGroup + "-b", profile.RPM, profile.Daily}
+		}
 		cfg.Reserve = func(ctx context.Context, g modelproxy.Grant) error {
-			if e := diagnosticmodel.Wait(ctx, store.DB, profile.QuotaGroup, profile.RPM, profile.Daily); e != nil {
+			selected, ok := quotas[g.RouteGroup]
+			if !ok || len(backends) == 1 {
+				selected = quotas["a"]
+			}
+			if e := diagnosticmodel.Wait(ctx, store.DB, selected.group, selected.rpm, selected.daily); e != nil {
 				if errors.Is(e, diagnosticmodel.ErrLimited) {
 					return &modelproxy.HTTPError{Status: 429, Message: "provider daily budget exhausted"}
 				}
@@ -153,4 +200,34 @@ func main() {
 		slog.Error("model gateway stopped")
 		os.Exit(1)
 	}
+}
+
+// readProviderEnv accepts only a private owner-readable file. A second
+// HY_URL_2/HY_API_2 pair is optional and is used for team-stable key routing.
+func readProviderEnv(path string) (map[string]string, error) {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+		return nil, errors.New("provider file must be private 0600")
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	values := map[string]string{}
+	for _, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		k, v, ok := strings.Cut(strings.TrimPrefix(line, "export "), "=")
+		if !ok {
+			continue
+		}
+		k = strings.TrimSpace(k)
+		if _, exists := values[k]; exists {
+			return nil, errors.New("duplicate provider key")
+		}
+		values[k] = strings.Trim(strings.TrimSpace(v), "\"'")
+	}
+	return values, nil
 }

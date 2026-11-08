@@ -286,7 +286,16 @@ func (s *Store) automaticReviewDecision(worker *review.Worker, advice review.Adv
 	}
 	if advice.Outcome != "advice_ready" {
 		switch advice.Outcome {
-		case "provider_unavailable", "provider_timeout", "provider_error", "provider_busy", "invalid_provider_version", "invalid_response", "invalid_input":
+		case "provider_unavailable", "provider_timeout", "provider_error", "provider_busy":
+			// A provider-side outage or completion limit is not a participant
+			// rejection. After the bounded advisory retries it becomes a manual
+			// staff review and never charges an evaluation attempt.
+			code := advice.FailureCode
+			if code == "" {
+				code = advice.Outcome
+			}
+			return "pending_review", "Automated advisory was unavailable (" + code + "); manual review required. No evaluation attempt charged."
+		case "invalid_provider_version", "invalid_response", "invalid_input":
 			return reject(advice.Outcome)
 		default:
 			return reject("invalid_review_evidence")
@@ -296,7 +305,7 @@ func (s *Store) automaticReviewDecision(worker *review.Worker, advice review.Adv
 	case *review.HTTPSProvider, *review.DiagnosticProvider:
 		// Only configured production provider implementations can approve.
 	default:
-		return reject("non_live_review_provider")
+		return "pending_review", "Automated review provider is not configured; manual review required. No evaluation attempt charged."
 	}
 	if len(advice.Findings) != 0 || advice.UncoveredScannerRisks != 0 {
 		return reject("ai_risk_detected")

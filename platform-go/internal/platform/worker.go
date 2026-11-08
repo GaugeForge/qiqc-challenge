@@ -133,12 +133,27 @@ func (s *Store) RunWorker(ctx context.Context, slots int, realExecutor func(cont
 				if err != nil {
 					// Upload-only errors keep their durable bundle; never turn them into a rerun.
 					if _, e := os.Stat(filepath.Join(s.Root, "cache", l.RunID, strconv.Itoa(l.Attempt), "pending.json")); os.IsNotExist(e) {
+						category, retryable := "platform", false
+						failure, _ := AsExecutionFailure(err)
+						if failure != nil {
+							category = failure.Category
+							retryable = failure.Retryable && category == "platform"
+						}
 						// A transient SQLite sidecar/lock error must not orphan a
 						// running row until its long scientific lease expires.
 						var failErr error
 						for attempt := 0; attempt < 3; attempt++ {
-							if failErr = s.Fail(l, "platform"); failErr == nil {
-								_ = s.RetryPlatformFailure(l, "Provider or infrastructure failure; automatic retry scheduled")
+							if failErr = s.Fail(l, category); failErr == nil {
+								diagnostic := RunFailure{Category: category}
+								if failure != nil {
+									diagnostic.Phase, diagnostic.Code = failure.Phase, failure.Code
+								}
+								if diagErr := s.RecordRunDiagnostic(l.RunID, l.Attempt, diagnostic); diagErr != nil {
+									slog.Error("run diagnostic deferred", "run", l.RunID, "attempt", l.Attempt, "error", diagErr)
+								}
+								if retryable {
+									_ = s.RetryPlatformFailure(l, "Infrastructure failure; one bounded automatic retry scheduled")
+								}
 								break
 							}
 							time.Sleep(time.Duration(attempt+1) * 250 * time.Millisecond)

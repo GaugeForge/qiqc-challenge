@@ -30,7 +30,7 @@ func advisoryVersion(t *testing.T, s *Store) (string, Version) {
 	}
 	return token, v
 }
-func TestAutomaticReviewFakeProviderRejectsWithoutCharging(t *testing.T) {
+func TestAutomaticReviewFakeProviderRequiresManualReview(t *testing.T) {
 	s := testStore(t)
 	team, v := advisoryVersion(t, s)
 	admin := readyUser(t, s, "review-admin@example.test", "admin")
@@ -48,7 +48,7 @@ func TestAutomaticReviewFakeProviderRejectsWithoutCharging(t *testing.T) {
 	s.DB.QueryRow("SELECT status FROM versions WHERE id=?", v.ID).Scan(&state)
 	s.DB.QueryRow("SELECT COUNT(*) FROM ledger").Scan(&ledger)
 	s.DB.QueryRow("SELECT COUNT(*) FROM review_advisories").Scan(&count)
-	if state != "rejected" || ledger != 0 || count != 1 {
+	if state != "pending_review" || ledger != 0 || count != 1 {
 		t.Fatal(state, ledger, count)
 	}
 	snapshot, e := s.AdminSnapshot(admin)
@@ -62,8 +62,12 @@ func TestAutomaticReviewFakeProviderRejectsWithoutCharging(t *testing.T) {
 	if _, e = s.AdminSnapshot(team); status(e) != 403 {
 		t.Fatal("team access")
 	}
-	if e = s.Review(admin, v.ID, "approve", "staff", "Inspected frozen code", "local"); status(e) != 409 {
-		t.Fatal("automatic rejection cannot be silently overridden", e)
+	if e = s.Review(admin, v.ID, "approve", "staff", "Inspected frozen code", "local"); e != nil {
+		t.Fatal("manual review should resolve a pending advisory", e)
+	}
+	s.DB.QueryRow("SELECT status FROM versions WHERE id=?", v.ID).Scan(&state)
+	if state != "approved" {
+		t.Fatal("manual approval not recorded", state)
 	}
 }
 func TestAutomaticReviewFailuresConcurrentClaimsReject(t *testing.T) {
@@ -86,7 +90,7 @@ func TestAutomaticReviewFailuresConcurrentClaimsReject(t *testing.T) {
 	var attempts int
 	s.DB.QueryRow("SELECT result,attempts FROM review_advisories").Scan(&raw, &attempts)
 	s.DB.QueryRow("SELECT status FROM versions WHERE id=?", v.ID).Scan(&state)
-	if attempts != 1 || state != "rejected" || !strings.Contains(raw, "provider_error") || strings.Contains(raw, "private upstream key") {
+	if attempts != 1 || state != "pending_review" || !strings.Contains(raw, "provider_error") || strings.Contains(raw, "private upstream key") {
 		t.Fatal(state, attempts, raw)
 	}
 }
@@ -157,19 +161,24 @@ func TestInvalidOversizeReportNeverCallsProvider(t *testing.T) {
 	}
 }
 
-func TestRejectedVersionIsNotSilentlyRereviewedAfterProviderChange(t *testing.T) {
+func TestProviderUnavailableStaysPendingManualReview(t *testing.T) {
 	s := testStore(t)
-	advisoryVersion(t, s)
+	_, v := advisoryVersion(t, s)
 	if worked, err := s.ProcessReviewOnce(context.Background(), review.NewWorker(nil, time.Second), "disabled"); err != nil || !worked {
 		t.Fatal(worked, err)
 	}
-	if worked, err := s.ProcessReviewOnce(context.Background(), review.NewWorker(review.FakeProvider{}, time.Second), "enabled"); err != nil || worked {
+	var state string
+	s.DB.QueryRow("SELECT status FROM versions WHERE id=?", v.ID).Scan(&state)
+	if state != "pending_review" {
+		t.Fatal("provider outage did not stay pending review", state)
+	}
+	// A later non-live provider may add evidence but must still require a human.
+	if worked, err := s.ProcessReviewOnce(context.Background(), review.NewWorker(review.FakeProvider{}, time.Second), "enabled"); err != nil || !worked {
 		t.Fatal(worked, err)
 	}
-	var n int
-	s.DB.QueryRow("SELECT COUNT(*) FROM review_advisories").Scan(&n)
-	if n != 1 {
-		t.Fatal("rejected decision unexpectedly replaced", n)
+	s.DB.QueryRow("SELECT status FROM versions WHERE id=?", v.ID).Scan(&state)
+	if state != "pending_review" {
+		t.Fatal("non-live provider silently decided a pending version", state)
 	}
 }
 func TestCompletedReviewPageDoesNotStarveNewVersions(t *testing.T) {

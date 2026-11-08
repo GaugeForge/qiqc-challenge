@@ -1,5 +1,5 @@
 [Unit]
-Description=Check QIQC demo TLS renewal every six hours
+Description=Check QIQC public host TLS renewal every six hours
 
 [Timer]
 OnBootSec=10min
