@@ -290,6 +290,8 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 	trajectoryText := ""
 	trajectoryTruncated := false
 	finalText := ""
+	stderrText := ""
+	harnessTraceText := ""
 	receipt := map[string]any{}
 	platformResult := map[string]any{}
 	for {
@@ -345,6 +347,16 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 			raw, err := io.ReadAll(io.LimitReader(tr, 65536))
 			if err == nil {
 				finalText = sanitizePublicTraceText(strings.ToValidUTF8(string(raw), "�"), taskID, label)
+			}
+		case "agent/native-stderr.txt":
+			raw, err := io.ReadAll(io.LimitReader(tr, 65536))
+			if err == nil {
+				stderrText = sanitizePublicTraceText(strings.ToValidUTF8(string(raw), "�"), taskID, label)
+			}
+		case "agent/harness_trace.json":
+			raw, err := io.ReadAll(io.LimitReader(tr, 65536))
+			if err == nil {
+				harnessTraceText = sanitizePublicTraceText(strings.ToValidUTF8(string(raw), "�"), taskID, label)
 			}
 		case "native-receipt.json":
 			raw, err := io.ReadAll(io.LimitReader(tr, 262144))
@@ -414,10 +426,30 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 			if text := strings.TrimSpace(finalText); text != "" {
 				lines = append(lines, "Final Agent message:", text)
 			}
-			view["trajectory_available"] = false
-			view["trajectory_excerpt"] = sanitizePublicTraceText(strings.Join(lines, "\n"), taskID, label)
-			view["trajectory_truncated"] = false
+			if text := strings.TrimSpace(harnessTraceText); text != "" {
+				lines = append(lines, "Retained harness summary:", text)
+			}
+			if text := strings.TrimSpace(stderrText); text != "" {
+				lines = append(lines, "Retained harness stderr/output:", text)
+			}
+			hasOutput := harnessTraceText != "" || stderrText != ""
+			view["trajectory_available"] = hasOutput
+			excerpt := sanitizePublicTraceText(strings.Join(lines, "\n"), taskID, label)
+			if len(excerpt) > maxPublicTraceExcerpt {
+				excerpt = excerpt[:maxPublicTraceExcerpt]
+				for !utf8.ValidString(excerpt) && len(excerpt) > 0 {
+					excerpt = excerpt[:len(excerpt)-1]
+				}
+				view["trajectory_truncated"] = true
+			} else {
+				view["trajectory_truncated"] = false
+			}
+			view["trajectory_excerpt"] = excerpt
 			view["trace_source"] = "retained_result_summary"
+			if hasOutput {
+				view["trace_source"] = "retained_harness_output"
+				view["summary"] = "No native Agent CLI transcript was retained. This view contains the retained harness summary/stderr and result metadata."
+			}
 			if _, exists := view["summary"]; !exists {
 				view["summary"] = "The retained archive does not contain an Agent event log. The trusted result remains authoritative."
 			}

@@ -135,6 +135,25 @@ func TestPublicTraceFallsBackToRetainedResultSummary(t *testing.T) {
 	}
 }
 
+func TestPublicTraceUsesRetainedHarnessOutputWithoutCLI(t *testing.T) {
+	path := writeTraceArchive(t, map[string]any{
+		"mode": "scientific", "reward": 0, "runtime_seconds": 10,
+		"trajectory_available": true, "trajectory_excerpt": "",
+	}, map[string][]byte{
+		"agent/native-stderr.txt":  []byte("[mcp] run_experiment 0.1s\n[mcp] submit 0.1s\n"),
+		"agent/harness_trace.json": []byte(`{"harness":"plan-probe-verify","succeeded":true}`),
+	})
+	raw, err := publicTraceViewFromFile(path, "hidden_task", "Public task 2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := decodeTraceView(t, raw)
+	excerpt, _ := view["trajectory_excerpt"].(string)
+	if view["trajectory_available"] != true || view["trace_source"] != "retained_harness_output" || !strings.Contains(excerpt, "[mcp] run_experiment") || !strings.Contains(excerpt, "plan-probe-verify") {
+		t.Fatalf("harness output not retained: %s", excerpt)
+	}
+}
+
 func TestPublicTraceTransportLimitAndTruncation(t *testing.T) {
 	output := strings.Repeat("x", 300*1024)
 	cli := `{"type":"item.completed","item":{"type":"command_execution","command":"cat big","aggregated_output":"` + output + `","exit_code":0,"status":"completed"}}` + "\n"
