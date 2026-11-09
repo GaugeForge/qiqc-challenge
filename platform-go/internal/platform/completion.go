@@ -9,11 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/gaugeforge/qiqc-platform-go/internal/rollout"
 )
@@ -485,8 +483,8 @@ func (s *Store) Trace(ctx context.Context, token, bid string, ordinal int) (map[
 	if u.MustChange != 0 {
 		return nil, problem(403, "请先修改初始密码")
 	}
-	var key, sha, mode string
-	err = s.DB.QueryRow(`SELECT r.object_key,r.object_sha,b.mode FROM runs r JOIN batches b ON b.id=r.batch_id WHERE b.id=? AND b.team_id=? AND b.kind='public' AND b.status='completed' AND r.ordinal=? AND r.public=1`, bid, u.TeamID, ordinal).Scan(&key, &sha, &mode)
+	var key, sha, mode, taskID string
+	err = s.DB.QueryRow(`SELECT r.object_key,r.object_sha,b.mode,COALESCE(t.task_id,'') FROM runs r JOIN batches b ON b.id=r.batch_id LEFT JOIN run_scientific_targets t ON t.run_id=r.id WHERE b.id=? AND b.team_id=? AND b.kind='public' AND b.status='completed' AND r.ordinal=? AND r.public=1`, bid, u.TeamID, ordinal).Scan(&key, &sha, &mode, &taskID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, problem(404, "轨迹不可访问")
 	}
@@ -496,40 +494,15 @@ func (s *Store) Trace(ctx context.Context, token, bid string, ordinal int) (map[
 	if s.Objects == nil {
 		return nil, problem(503, "轨迹存储不可用")
 	}
+	label := fmt.Sprintf("Public task %d", ordinal+1)
 	var text string
 	err = s.Objects.WithFile(ctx, key, sha, func(file string) error {
-		f, err := os.Open(file)
-		if err != nil {
-			return err
+		generated, buildErr := publicTraceViewFromFile(file, taskID, label)
+		if buildErr != nil {
+			return buildErr
 		}
-		defer f.Close()
-		gz, err := gzip.NewReader(f)
-		if err != nil {
-			return err
-		}
-		defer gz.Close()
-		tr := tar.NewReader(io.LimitReader(gz, 100*1024*1024))
-		for {
-			hdr, err := tr.Next()
-			if err == io.EOF {
-				return errors.New("public view missing")
-			}
-			if err != nil {
-				return err
-			}
-			if hdr.Name != "public-view.txt" {
-				continue
-			}
-			if hdr.Typeflag != tar.TypeReg || hdr.Size > 500000 {
-				return errors.New("invalid public view")
-			}
-			b, err := io.ReadAll(io.LimitReader(tr, 500001))
-			if err != nil {
-				return err
-			}
-			text = strings.ToValidUTF8(string(b), "�")
-			return nil
-		}
+		text = string(generated)
+		return nil
 	})
 	if err != nil {
 		return nil, problem(503, "证据完整性或读取检查失败")
