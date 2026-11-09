@@ -340,7 +340,10 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 		return nil, err
 	}
 	defer gz.Close()
-	tr := tar.NewReader(io.LimitReader(gz, 100*1024*1024))
+	// Trace archives can contain many per-job artifacts; the public-view and
+	// receipt may be far behind them. This is a bounded streaming read, and a
+	// truncated read still yields a useful fallback from the Agent files.
+	tr := tar.NewReader(io.LimitReader(gz, 512*1024*1024))
 	view := map[string]any{}
 	viewRaw := ""
 	cliText := ""
@@ -355,11 +358,11 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 	platformResult := map[string]any{}
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			break
 		}
 		if header.Typeflag != tar.TypeReg {
 			continue
