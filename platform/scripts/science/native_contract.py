@@ -18,6 +18,16 @@ SHA = re.compile(r'[a-f0-9]{64}\Z')
 IMAGE = re.compile(r'sha256:[a-f0-9]{64}\Z')
 TASK = re.compile(r'[a-z][a-z0-9_]{0,99}\Z')
 
+# E2B reports usable memory after host-side overhead. An 8192 MB task
+# therefore appears as 7956 MB inside the same sandbox. Keep the original
+# container limits exact, but allow up to 3% host-capacity overhead when
+# comparing the outer sandbox with the task/role memory declarations.
+OUTER_SANDBOX_MEMORY_PERCENT = 97
+
+
+def _outer_memory_ok(actual, required):
+    return actual >= required * OUTER_SANDBOX_MEMORY_PERCENT / 100
+
 
 class NativeContractError(ValueError):
     """A fixed safe classification, with no scientific payload in its message."""
@@ -438,13 +448,13 @@ def validate_runtime(plan, task_id, observed, *, acceptance_scope="full-runtime"
     if not isinstance(resources,dict) or any(type(resources.get(key)) not in (int,float) or not 0<resources[key]<1000000000 for key in ('cpus','memory_mb')):
         errors.append('actual_host_resources_missing_or_invalid')
         resources={'cpus':0,'memory_mb':0}
-    if resources.get('cpus',0) < task['resources']['cpus'] or resources.get('memory_mb',0) < task['resources']['memory_mb']:
+    if resources.get('cpus',0) < task['resources']['cpus'] or not _outer_memory_ok(resources.get('memory_mb',0), task['resources']['memory_mb']):
         errors.append('outer_sandbox_below_original_task_resources')
     for role,required in task['role_resources'].items():
         host=containers.get(role,{}).get('HostConfig',{})
         memory=required.get('memory_mb');cpu=required.get('cpus')
         if memory is not None:
-            if resources.get('memory_mb',0)<memory:errors.append('outer_sandbox_below_'+role+'_original_memory')
+            if not _outer_memory_ok(resources.get('memory_mb',0), memory):errors.append('outer_sandbox_below_'+role+'_original_memory')
             if host.get('Memory')!=int(memory*1024*1024):errors.append(role+'_original_memory_limit_mismatch')
         elif host.get('Memory',0)!=0:errors.append(role+'_unexpected_memory_limit')
         if cpu is not None:
