@@ -61,7 +61,7 @@ import hashlib,json,pathlib,stat,zipfile
 archive=pathlib.Path('/tmp/qiqc-native-harness.zip')
 expected=pathlib.Path('/tmp/qiqc-native-harness.sha256').read_text().strip()
 assert hashlib.sha256(archive.read_bytes()).hexdigest()==expected
-root=pathlib.Path('/opt/qiqc-submission');root.mkdir(mode=0o700)
+root=pathlib.Path('/opt/qiqc-submission');root.mkdir(mode=0o755,exist_ok=True);root.chmod(0o755)
 with zipfile.ZipFile(archive) as z:
  names=set()
  for e in z.infolist():

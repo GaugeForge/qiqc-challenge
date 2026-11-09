@@ -185,6 +185,15 @@ def test_agent_runs_uploaded_entry_and_real_cutoff(tmp_path,monkeypatch,exit_cod
         EVIDENCE.pop('native_test',None)
 
 
+def test_uploaded_harness_extraction_root_is_traversable_by_unprivileged_worker():
+    import native_compose_agent as agent
+    # The submitted Python worker drops to UID 65534. Its adapter directory
+    # must remain traversable; a 0700 extraction root makes the worker reject
+    # its own public path ancestor before any task work starts.
+    assert "root.mkdir(mode=0o755,exist_ok=True)" in agent.EXTRACT
+    assert "root.chmod(0o755)" in agent.EXTRACT
+
+
 def test_native_runtime_never_builds_or_pulls(monkeypatch):
     from native_compose_environment import NativeDockerEnvironment,DockerEnvironment
     calls=[]
