@@ -210,6 +210,14 @@ func addPublicTraceObject(filter *publicTraceFilter, object map[string]any, task
 		}
 	}
 	switch publicEventType(object) {
+	case "tool_execution_start":
+		filter.add(map[string]any{"event": "tool_call", "tool": boundedTraceString(object["toolName"], 512, taskID, label), "arguments": boundedTraceString(object["args"], 16*1024, taskID, label)})
+	case "tool_execution_end":
+		filter.add(map[string]any{"event": "tool_result", "tool_call_id": boundedTraceString(object["toolCallId"], 512, taskID, label), "error": boundedTraceString(object["isError"], 64, taskID, label), "output": boundedTraceString(publicMessageText(object["result"]), 24*1024, taskID, label)})
+	case "message_end":
+		if message, ok := object["message"].(map[string]any); ok && message["role"] == "assistant" {
+			filter.add(map[string]any{"event": "agent_message", "text": boundedTraceString(publicMessageText(message), 24*1024, taskID, label)})
+		}
 	case "thinking":
 		filter.add(map[string]any{"event": "agent_thinking", "text": boundedTraceString(object["text"], 16*1024, taskID, label)})
 	case "text":
