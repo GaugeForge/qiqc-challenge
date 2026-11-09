@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gaugeforge/qiqc-platform-go/internal/rollout"
 )
@@ -496,14 +497,23 @@ func (s *Store) Trace(ctx context.Context, token, bid string, ordinal int) (map[
 	}
 	label := fmt.Sprintf("Public task %d", ordinal+1)
 	var text string
-	err = s.Objects.WithFile(ctx, key, sha, func(file string) error {
-		generated, buildErr := publicTraceViewFromFile(file, taskID, label)
-		if buildErr != nil {
-			return buildErr
+	for attempt := 0; attempt < 3; attempt++ {
+		err = s.Objects.WithFile(ctx, key, sha, func(file string) error {
+			generated, buildErr := publicTraceViewFromFile(file, taskID, label)
+			if buildErr != nil {
+				return buildErr
+			}
+			text = string(generated)
+			return nil
+		})
+		if err == nil {
+			break
 		}
-		text = string(generated)
-		return nil
-	})
+		if ctx.Err() != nil {
+			break
+		}
+		time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+	}
 	if err != nil {
 		return nil, problem(503, "证据完整性或读取检查失败")
 	}
