@@ -103,6 +103,21 @@ def test_native_session_reaches_verifier_with_original_resource_checks(plan, sco
         plan, task['task_id'], observed, acceptance_scope=scope)
 
 
+@pytest.mark.parametrize('task_id', ['femoco_mps_qpe_resources', 'fermionic_laughlin_topo_entropy'])
+def test_e2b_memory_overhead_tolerance_for_8gb_tasks(plan, task_id):
+    # The same 8192 MB role limits remain exact; only the outer E2B capacity
+    # check allows the host-reported overhead (7956 MB in production).
+    task = plan['tasks'][task_id]
+    value = observation(plan, task)
+    value['resources'] = {'cpus': 4, 'memory_mb': 7956}
+    errors = nc.validate_runtime(plan, task_id, value)
+    assert 'outer_sandbox_below_original_task_resources' not in errors
+    assert 'outer_sandbox_below_main_original_memory' not in errors
+    assert 'outer_sandbox_below_verifier_original_memory' not in errors
+    value['resources']['memory_mb'] = 7900
+    assert 'outer_sandbox_below_original_task_resources' in nc.validate_runtime(plan, task_id, value)
+
+
 @pytest.mark.parametrize('mutation,expected',[
     ('image','main_running_image_mismatch'),('mount','main_unapproved_mount'),
     ('private','main_private_read_negative_check_missing_or_failed'),
