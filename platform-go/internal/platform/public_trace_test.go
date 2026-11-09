@@ -154,6 +154,21 @@ func TestPublicTraceUsesRetainedHarnessOutputWithoutCLI(t *testing.T) {
 	}
 }
 
+func TestPublicTraceCacheRoundTripAndRejectsInvalidDigest(t *testing.T) {
+	s := testStore(t)
+	raw := []byte(`{"trajectory_excerpt":"cached"}`)
+	sha := strings.Repeat("a", 64)
+	if err := s.writePublicTraceCache(sha, 2, raw); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := s.readPublicTraceCache(sha, 2); !ok || got != string(raw) {
+		t.Fatalf("cache round trip failed: %q %v", got, ok)
+	}
+	if _, ok := s.readPublicTraceCache("../escape", 2); ok {
+		t.Fatal("unsafe digest reached cache")
+	}
+}
+
 func TestPublicTraceTransportLimitAndTruncation(t *testing.T) {
 	output := strings.Repeat("x", 300*1024)
 	cli := `{"type":"item.completed","item":{"type":"command_execution","command":"cat big","aggregated_output":"` + output + `","exit_code":0,"status":"completed"}}` + "\n"
