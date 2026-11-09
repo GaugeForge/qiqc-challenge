@@ -91,8 +91,8 @@ func TestPublicTraceFormatsFromOtherHarnesses(t *testing.T) {
 	deepseek := strings.Join([]string{
 		`{"kind":"run/start"}`,
 		`{"kind":"run/end","status":"completed"}`,
-		`{"direction":"from-harness","message":` + string(mustJSON(t, string(msg1))) + `}`,
-		`{"direction":"from-harness","message":` + string(mustJSON(t, string(msg2))) + `}`,
+		`{"direction":"from-harness","message":` + string(msg1) + `}`,
+		`{"direction":"from-harness","message":` + string(msg2) + `}`,
 	}, "\n") + "\n"
 	zquanta := `{"ts":1,"elapsed_s":0.1,"type":"harness_end","data":{"status":"completed","task_id":"hidden_task_xyz"}}` + "\n"
 	pi := strings.Join([]string{
@@ -117,15 +117,6 @@ func TestPublicTraceFormatsFromOtherHarnesses(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mustJSON(t *testing.T, value string) []byte {
-	t.Helper()
-	raw, err := json.Marshal(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return raw
 }
 
 func TestPublicTraceFallsBackToRetainedResultSummary(t *testing.T) {

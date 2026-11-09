@@ -183,10 +183,17 @@ func addPublicTraceObject(filter *publicTraceFilter, object map[string]any, task
 		}
 		return
 	}
-	// DeepSeek harness envelope: top-level message is a JSON-RPC string.
-	if messageRaw, ok := object["message"].(string); ok {
-		var message map[string]any
-		if json.Unmarshal([]byte(messageRaw), &message) == nil && message["method"] == "session.event" {
+	// DeepSeek harness envelope: top-level message may be JSON-RPC object or
+	// string depending on the retained log version.
+	var message map[string]any
+	switch raw := object["message"].(type) {
+	case string:
+		_ = json.Unmarshal([]byte(raw), &message)
+	case map[string]any:
+		message = raw
+	}
+	if message != nil {
+		if message["method"] == "session.event" {
 			params, _ := message["params"].(map[string]any)
 			event, _ := params["event"].(map[string]any)
 			data, _ := event["data"].(map[string]any)
