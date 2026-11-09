@@ -8,7 +8,7 @@ from pathlib import Path
 SCHEMA = "qiqc-native-runtime-bundles/v1"
 PACKAGES = {
     "deepseek-harness": ("@deepseek-ai/dsh", "0.2.1-rc.2"),
-    "pi-agent": ("@earendil-works/pi-coding-agent", "1.3.0"),
+    "pi-agent": ("@earendil-works/pi-coding-agent", "1.5.0"),
 }
 RELATIVE_MANIFEST = "competition-platform/adapters/native-runtime-bundles.json"
 

@@ -53,7 +53,7 @@ RUNTIMES = {
                  'runtime_versions':['0.2.2-rc.1','0.2.1-rc.5','0.2.1-rc.4','0.2.1-rc.3','0.2.1-rc.2'],
                  'model_interfaces':['chat/completions','responses']},
     'pi': {'adapter':'pi-agent','label':'Pi Agent','runtime_package':'@earendil-works/pi-coding-agent',
-           'runtime_version':'1.3.0', 'deployed_version':'1.3.0',
+           'runtime_version':'1.5.0', 'deployed_version':'1.5.0',
            'latest_available':'1.5.0',
            'runtime_versions':['1.5.0','1.4.0','1.3.0','1.2.0','1.1.0','1.0.4'],
            'model_interfaces':['chat/completions','responses']},

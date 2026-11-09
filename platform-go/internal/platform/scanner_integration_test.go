@@ -98,7 +98,7 @@ func TestDockerScannerMinimalHarnessManifest(t *testing.T) {
 	if err = s.DB.QueryRow("SELECT report FROM versions WHERE id=?", v.ID).Scan(&raw); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"runtime":"pi"`, `"adapter":"pi-agent"`, `"runtime_version":"1.3.0"`, `"task_transport":"native-http/v1"`} {
+	for _, want := range []string{`"runtime":"pi"`, `"adapter":"pi-agent"`, `"runtime_version":"1.5.0"`, `"task_transport":"native-http/v1"`} {
 		if !bytes.Contains([]byte(raw), []byte(want)) {
 			t.Fatalf("derived field %s missing from %s", want, raw)
 		}
