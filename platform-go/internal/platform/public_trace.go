@@ -367,7 +367,7 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 		if header.Typeflag != tar.TypeReg {
 			continue
 		}
-		switch header.Name {
+		switch publicTraceBaseName(header.Name) {
 		case "public-view.txt":
 			if header.Size > 500000 {
 				continue
@@ -532,6 +532,20 @@ func publicTraceViewFromFile(path, taskID, label string) ([]byte, error) {
 		}
 	}
 	return marshalPublicView(view)
+}
+
+func publicTraceBaseName(name string) string {
+	for _, base := range []string{
+		"agent/native-cli.jsonl", "agent/native-trajectory.jsonl",
+		"agent/native-stderr.txt", "agent/final.txt",
+		"agent/harness_trace.json", "native-receipt.json",
+		"platform-result.json", "public-view.txt",
+	} {
+		if name == base || strings.HasSuffix(name, "/"+base) {
+			return base
+		}
+	}
+	return name
 }
 
 func marshalPublicView(view map[string]any) ([]byte, error) {
