@@ -492,10 +492,13 @@ func (s *Store) Trace(ctx context.Context, token, bid string, ordinal int) (map[
 	if err != nil {
 		return nil, err
 	}
+	label := fmt.Sprintf("Public task %d", ordinal+1)
+	if cached, ok := s.readPublicTraceCache(sha, ordinal); ok {
+		return map[string]any{"text": cached, "mode": mode, "ordinal": ordinal, "filtered": true}, nil
+	}
 	if s.Objects == nil {
 		return nil, problem(503, "轨迹存储不可用")
 	}
-	label := fmt.Sprintf("Public task %d", ordinal+1)
 	var text string
 	for attempt := 0; attempt < 3; attempt++ {
 		err = s.Objects.WithFile(ctx, key, sha, func(file string) error {
@@ -516,6 +519,10 @@ func (s *Store) Trace(ctx context.Context, token, bid string, ordinal int) (map[
 	}
 	if err != nil {
 		return nil, problem(503, "证据完整性或读取检查失败")
+	}
+	if cacheErr := s.writePublicTraceCache(sha, ordinal, []byte(text)); cacheErr != nil {
+		// A cache write failure must not deny an otherwise valid download.
+		_ = cacheErr
 	}
 	return map[string]any{"text": text, "mode": mode, "ordinal": ordinal, "filtered": true}, nil
 }

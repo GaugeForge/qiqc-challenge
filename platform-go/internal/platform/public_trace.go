@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -19,7 +20,65 @@ const (
 	maxPublicTraceWire    = 480 * 1024
 	maxPublicTraceSource  = 32 * 1024 * 1024
 	maxPublicCLILine      = 16 * 1024 * 1024
+	publicTraceCache      = "v1"
 )
+
+func (s *Store) publicTraceCachePath(sha string, ordinal int) string {
+	return filepath.Join(s.Root, "public-traces", fmt.Sprintf("%s_%s_%02d.json", publicTraceCache, sha, ordinal))
+}
+
+func (s *Store) readPublicTraceCache(sha string, ordinal int) (string, bool) {
+	if !validDigest(sha) {
+		return "", false
+	}
+	raw, err := os.ReadFile(s.publicTraceCachePath(sha, ordinal))
+	if err != nil || len(raw) == 0 || len(raw) > maxPublicTraceWire+1024 || !json.Valid(raw) {
+		return "", false
+	}
+	return string(raw), true
+}
+
+func (s *Store) writePublicTraceCache(sha string, ordinal int, raw []byte) error {
+	if !validDigest(sha) || len(raw) == 0 || len(raw) > maxPublicTraceWire+1024 || !json.Valid(raw) {
+		return errors.New("invalid public trace cache entry")
+	}
+	dir := filepath.Join(s.Root, "public-traces")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return err
+	}
+	if err := os.Chmod(dir, 0o750); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, ".trace-")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	defer os.Remove(name)
+	if _, err = tmp.Write(raw); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	if err = os.Chmod(name, 0o640); err != nil {
+		return err
+	}
+	if err = os.Rename(name, s.publicTraceCachePath(sha, ordinal)); err != nil {
+		return err
+	}
+	directory, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
+}
 
 var (
 	publicBearerRE  = regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+`)
