@@ -95,7 +95,12 @@ func TestPublicTraceFormatsFromOtherHarnesses(t *testing.T) {
 		`{"direction":"from-harness","message":` + string(mustJSON(t, string(msg2))) + `}`,
 	}, "\n") + "\n"
 	zquanta := `{"ts":1,"elapsed_s":0.1,"type":"harness_end","data":{"status":"completed","task_id":"hidden_task_xyz"}}` + "\n"
-	for name, cli := range map[string]string{"aaa": aaa, "deepseek": deepseek, "zquanta": zquanta} {
+	pi := strings.Join([]string{
+		`{"type":"tool_execution_start","toolCallId":"call-1","toolName":"bash","args":"{\"command\":\"echo hidden_task_xyz\"}"}`,
+		`{"type":"tool_execution_end","toolCallId":"call-1","toolName":"bash","result":{"content":[{"type":"text","text":"stdout hidden_task_xyz"}]},"isError":false}`,
+		`{"type":"message_end","message":{"role":"assistant","content":"final hidden_task_xyz"}}`,
+	}, "\n") + "\n"
+	for name, cli := range map[string]string{"aaa": aaa, "deepseek": deepseek, "zquanta": zquanta, "pi": pi} {
 		t.Run(name, func(t *testing.T) {
 			path := writeTraceArchive(t, map[string]any{"trajectory_available": true, "trajectory_excerpt": ""}, map[string][]byte{"agent/native-cli.jsonl": []byte(cli)})
 			raw, err := publicTraceViewFromFile(path, taskID, "Public task 2")
