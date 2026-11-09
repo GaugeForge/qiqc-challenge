@@ -150,7 +150,7 @@ class NativeSubmittedHarness(BaseAgent):
         # installation or user-selected command is run on the controller.
         known={'codex':('codex --version','codex-cli 0.144.4'),
                'deepseek-harness':('dsh --version','0.2.1-rc.2'),
-               'pi-agent':('pi --version','1.3.0')}
+               'pi-agent':('pi --version','1.5.0')}
         if manifest['adapter'] in known:
             command,version=known[manifest['adapter']]
             result=await environment.exec(command,env=self.runtime_env,timeout_sec=15)
