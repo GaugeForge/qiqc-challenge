@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -147,6 +148,72 @@ func (s *Store) finalize(tx *sql.Tx, bid string) error {
 	payload, _ := json.Marshal(map[string]string{"batch_id": bid, "mode": mode})
 	_, err = tx.Exec("INSERT INTO outbox(id,event,team_id,payload,created) VALUES(?,'evaluation_completed',?,?,?)", id(), team, string(payload), s.now())
 	return err
+}
+
+// FinalizeTerminalBatches closes evaluations whose runs are all terminal but
+// whose final worker completion was processed by an older binary or interrupted
+// between the run transition and the batch transition. A batch with any queued,
+// running, uploading or attention task is left alone.
+func (s *Store) FinalizeTerminalBatches() (int, error) {
+	done := 0
+	err := s.write(func(tx *sql.Tx) error {
+		rows, err := tx.Query(`SELECT b.id FROM batches b
+WHERE b.status IN ('testing','attention')
+  AND EXISTS(SELECT 1 FROM runs r WHERE r.batch_id=b.id)
+  AND NOT EXISTS(SELECT 1 FROM runs r WHERE r.batch_id=b.id AND r.state IN ('queued','running','uploading','attention'))`)
+		if err != nil {
+			return err
+		}
+		ids := []string{}
+		for rows.Next() {
+			var bid string
+			if err = rows.Scan(&bid); err != nil {
+				rows.Close()
+				return err
+			}
+			ids = append(ids, bid)
+		}
+		if err = rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		for _, bid := range ids {
+			var before string
+			if err = tx.QueryRow("SELECT status FROM batches WHERE id=?", bid).Scan(&before); err != nil {
+				return err
+			}
+			if err = s.finalize(tx, bid); err != nil {
+				return err
+			}
+			var after string
+			if err = tx.QueryRow("SELECT status FROM batches WHERE id=?", bid).Scan(&after); err != nil {
+				return err
+			}
+			if before != "completed" && after == "completed" {
+				done++
+			}
+		}
+		return nil
+	})
+	return done, err
+}
+
+// RunCompletionLoop keeps finalization independent of a single worker binary.
+// It is intentionally cheap: only batches with no non-terminal run match.
+func (s *Store) RunCompletionLoop(ctx context.Context) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if _, err := s.FinalizeTerminalBatches(); err != nil {
+				slog.Error("terminal batch finalization failed")
+			}
+		}
+	}
 }
 
 // RetryZeroResourceStartup requeues the original attempt exactly once when the
