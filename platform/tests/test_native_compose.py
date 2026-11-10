@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 from native_compose_contract import validate_spec,submission_manifest,validate_main_container
 from native_compose_template import archive_bytes
-from native_compose_runner import make_trial_config,read_scoped_token,trial_result_paths
+from native_compose_runner import make_trial_config,read_scoped_token,trial_result_paths,main_oom_after_completion_allowed
 
 
 def spec(tmp_path):
@@ -183,6 +183,25 @@ def test_agent_runs_uploaded_entry_and_real_cutoff(tmp_path,monkeypatch,exit_cod
         agent.RUNS.pop('native_test',None)
         from native_compose_environment import EVIDENCE
         EVIDENCE.pop('native_test',None)
+
+
+def test_main_oom_after_completed_verified_run_is_not_infra_failure():
+    metadata={'agent_exit':0,'agent_stop_reason':'completed'}
+    classification={'infrastructure_ok':True,'verifier_exit':0}
+    evidence={'main_stopped_before_verifier':True}
+    assert main_oom_after_completion_allowed(
+        ['main_terminal_oom_or_missing'], metadata, classification, 1, evidence, True)
+    assert not main_oom_after_completion_allowed(
+        ['main_terminal_oom_or_missing'], {**metadata,'agent_exit':137}, classification, 1, evidence, True)
+    assert not main_oom_after_completion_allowed(
+        ['main_terminal_oom_or_missing','verifier_terminal_oom_or_missing'],
+        metadata, classification, 1, evidence, True)
+    assert not main_oom_after_completion_allowed(
+        ['main_terminal_oom_or_missing'], metadata,
+        {**classification,'infrastructure_ok':False}, 1, evidence, True)
+    assert not main_oom_after_completion_allowed(
+        ['main_terminal_oom_or_missing'], metadata, classification, 1,
+        {'main_stopped_before_verifier':False}, True)
 
 
 def test_uploaded_harness_extraction_root_is_traversable_by_unprivileged_worker():
