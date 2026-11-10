@@ -66,6 +66,15 @@ func (s *Store) ScientificLeaderboard() (map[string]any, error) {
 		if p.SubmissionSHA != r.SHA256 {
 			return nil, errors.New("ranking submission binding mismatch")
 		}
+		// A team may intentionally cancel one task to close an evaluation, but
+		// that forfeit has no full-batch verifier evidence and cannot be ranked.
+		var cancelled int
+		if e = s.DB.QueryRow("SELECT COUNT(*) FROM runs WHERE batch_id=? AND state='cancelled'", r.ID).Scan(&cancelled); e != nil {
+			return nil, e
+		}
+		if cancelled > 0 {
+			continue
+		}
 		passed, mean, e := s.verifiedFullScore(r.ID)
 		if e != nil {
 			return nil, e

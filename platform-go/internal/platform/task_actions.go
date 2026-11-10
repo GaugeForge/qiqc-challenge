@@ -225,6 +225,12 @@ func (s *Store) cancelTaskTx(tx *sql.Tx, u User, bid string, ordinal int, actor,
 	if err := s.refreshBatchAfterTaskAction(tx, bid); err != nil {
 		return false, err
 	}
+	// Cancelling the final outstanding task must close the evaluation rather
+	// than leaving it in "testing" forever. finalize ignores batches that still
+	// have running, queued or attention siblings.
+	if err := s.finalize(tx, bid); err != nil {
+		return false, err
+	}
 	after, _ := json.Marshal(map[string]any{"state": "cancelled", "attempt": attempt, "error": "cancelled:operator"})
 	return true, s.teamAudit(tx, u, token, ip, actor, "cancel_task", runID, reason, string(before), string(after))
 }
