@@ -285,6 +285,7 @@ func main() {
 	defer stop()
 	if cfg.Native != nil {
 		go cfg.Native.RunAdmissionLoop(ctx)
+		go cfg.Native.RunCompletionLoop(ctx)
 	}
 	go func() {
 		<-ctx.Done()

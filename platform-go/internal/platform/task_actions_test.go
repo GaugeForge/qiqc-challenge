@@ -172,6 +172,30 @@ func TestCancellingTaskWithRunningSiblingKeepsBatchOpen(t *testing.T) {
 	}
 }
 
+func TestFinalizeTerminalBatchesClosesCancelledForfeit(t *testing.T) {
+	s := testStore(t)
+	_, bid := taskActionFixture(t, s, "cancelled", "completed", "completed", "completed", "completed")
+	if _, err := s.DB.Exec("UPDATE runs SET error='cancelled:operator' WHERE batch_id=? AND ordinal=0", bid); err != nil {
+		t.Fatal(err)
+	}
+	for ordinal := 1; ordinal < 5; ordinal++ {
+		if _, err := s.DB.Exec("UPDATE runs SET reward=1,seconds='100.000000',object_key=?,object_sha=? WHERE batch_id=? AND ordinal=?", "runs/"+id()+".tar.gz", strings.Repeat("b", 64), bid, ordinal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	n, err := s.FinalizeTerminalBatches()
+	if err != nil || n != 1 {
+		t.Fatalf("finalize terminal batches: %d %v", n, err)
+	}
+	var status string
+	if err := s.DB.QueryRow("SELECT status FROM batches WHERE id=?", bid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" {
+		t.Fatalf("terminal batch not completed, got %s", status)
+	}
+}
+
 func TestPlatformCancelledRunDoesNotCloseBatch(t *testing.T) {
 	s := testStore(t)
 	_, bid := taskActionFixture(t, s, "cancelled", "completed", "completed", "completed", "completed")
