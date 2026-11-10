@@ -72,6 +72,27 @@ def trial_result_paths(job_dir):
     return sorted(p for p in root.glob("*/result.json") if p.is_file())
 
 
+def main_oom_after_completion_allowed(errors, metadata, classification, reward,
+                                      evidence, standard_harbor_rollout):
+    """Accept a main-container OOM only after a completed, verified run.
+
+    The main container can be OOM-killed by an orphaned tool process after the
+    harness has already exited 0 and submitted. The verifier runs in its own
+    container and is authoritative; a single terminal main OOM in that exact
+    state must not turn a valid scientific result into an infra failure.
+    """
+    return (
+        errors == ['main_terminal_oom_or_missing']
+        and metadata.get('agent_exit') == 0
+        and metadata.get('agent_stop_reason') == 'completed'
+        and classification.get('infrastructure_ok') is True
+        and classification.get('verifier_exit') in (0, 1)
+        and reward in (0, 1)
+        and evidence.get('main_stopped_before_verifier') is True
+        and standard_harbor_rollout is True
+    )
+
+
 def read_scoped_token(path):
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
     try:
@@ -165,8 +186,14 @@ async def run(spec):
         terminal=evidence.get('final_container_evidence',{})
         terminal_errors=validate_final_containers(terminal,evidence.get('runtime_observation',{}),
                                                   evidence,evidence.get('verifier_exit'))
-        terminal.update(errors=terminal_errors,verified=not terminal_errors)
         classification=classify_verifier(output/spec['run_id'],evidence.get('verifier_exit'),reward)
+        standard_harbor_rollout=(output/spec['run_id']/'result.json').is_file()
+        if main_oom_after_completion_allowed(
+                terminal_errors, metadata, classification, reward, evidence,
+                standard_harbor_rollout):
+            terminal['warning']='main_oom_after_agent_completion'
+            terminal_errors=[]
+        terminal.update(errors=terminal_errors,verified=not terminal_errors)
         receipt.update({key:metadata.get(key) for key in ('agent_exit','budget_exhausted','agent_stop_reason','runtime_seconds',
                         'execution_duration_class','observation_policy')})
         receipt.update(reward=reward,verifier_exit=classification['verifier_exit'],
