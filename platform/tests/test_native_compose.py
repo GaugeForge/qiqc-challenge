@@ -194,6 +194,26 @@ def test_uploaded_harness_extraction_root_is_traversable_by_unprivileged_worker(
     assert "root.chmod(0o755)" in agent.EXTRACT
 
 
+def test_dsh_stream_idle_default_is_raised_for_uploaded_runtime(tmp_path,monkeypatch):
+    import native_compose_agent as agent
+    target=tmp_path/'node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js'
+    target.parent.mkdir(parents=True)
+    target.write_text(
+        "const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 3e5;\n"
+        "const streamIdleTimeoutMs = source.streamIdleTimeoutMs ?? 3e5;\n"
+    )
+    monkeypatch.setenv('QIQC_RUNTIME_ROOT',str(tmp_path))
+    monkeypatch.setenv('QIQC_DSH_STREAM_IDLE_MS',str(agent.DSH_STREAM_IDLE_TIMEOUT_MS))
+    exec(agent.DSH_IDLE_PATCH,{})
+    text=target.read_text()
+    assert agent.DSH_STREAM_IDLE_TIMEOUT_MS == 1800000
+    assert 'DEFAULT_STREAM_IDLE_TIMEOUT_MS = 1800000' in text
+    assert 'streamIdleTimeoutMs ?? 1800000' in text
+    assert '= 3e5' not in text
+    exec(agent.DSH_IDLE_PATCH,{})
+    assert target.read_text()==text
+
+
 def test_native_runtime_never_builds_or_pulls(monkeypatch):
     from native_compose_environment import NativeDockerEnvironment,DockerEnvironment
     calls=[]

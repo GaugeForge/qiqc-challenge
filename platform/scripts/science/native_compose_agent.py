@@ -4,6 +4,7 @@ This module is installed on the trusted E2B VM host. No scientific code is
 imported here. All submitted programs execute through Harbor DockerEnvironment.
 """
 from __future__ import annotations
+import base64
 import json
 import asyncio
 import shlex
@@ -79,6 +80,41 @@ with zipfile.ZipFile(archive) as z:
 '''
 
 
+# dsh 0.2.1-rc.2 defaults to a 300-second idle interval while a model stream
+# read is outstanding. Long-running scientific tasks can legitimately wait for
+# a provider response longer than that, and many submissions do not set the
+# provider option themselves. Raise the runtime default after extracting the
+# authenticated bundle. An explicit submission-level value still wins.
+DSH_STREAM_IDLE_TIMEOUT_MS = 1_800_000
+DSH_IDLE_PATCH = r'''
+import os, pathlib, sys
+root = pathlib.Path(os.environ['QIQC_RUNTIME_ROOT'])
+target = int(os.environ['QIQC_DSH_STREAM_IDLE_MS'])
+paths = [p for p in root.glob('node_modules/@deepseek-ai/dsh-llm-pi-ai/lib/index.js') if p.is_file()]
+if not paths:
+    paths = [p for p in root.rglob('dsh-llm-pi-ai/lib/index.js') if p.is_file()]
+if not paths:
+    print('dsh_stream_idle_patch_target_missing')
+    sys.exit(0)
+old_const = 'DEFAULT_STREAM_IDLE_TIMEOUT_MS = 3e5'
+new_const = 'DEFAULT_STREAM_IDLE_TIMEOUT_MS = %d' % target
+old_fallback = 'streamIdleTimeoutMs ?? 3e5'
+new_fallback = 'streamIdleTimeoutMs ?? %d' % target
+changed = 0
+for path in paths:
+    text = path.read_text()
+    updated = text
+    if old_const in updated:
+        updated = updated.replace(old_const, new_const)
+    if old_fallback in updated:
+        updated = updated.replace(old_fallback, new_fallback)
+    if updated != text:
+        path.write_text(updated)
+        changed += 1
+print('dsh_stream_idle_patch_files=%d' % changed)
+'''
+
+
 class NativeOptions(AgentOptions):
     run_handle: str
 
@@ -144,6 +180,20 @@ class NativeSubmittedHarness(BaseAgent):
                         timeout_sec=60)
                     if patched.return_code != 0:
                         raise RuntimeError('native_dsh_protocol_overlay_failed')
+                # Raise the dsh default stream-idle interval before any harness
+                # starts. This is an organizer compatibility overlay, not a
+                # change to the submitted package or task.
+                idle_env = {
+                    **self.runtime_env,
+                    'QIQC_RUNTIME_ROOT': '/opt/qiqc-native-runtime',
+                    'QIQC_DSH_STREAM_IDLE_MS': str(DSH_STREAM_IDLE_TIMEOUT_MS),
+                }
+                idle_patch = await environment.exec(
+                    "python3 -c \"import base64;exec(base64.b64decode('%s'))\""
+                    % base64.b64encode(DSH_IDLE_PATCH.encode()).decode(),
+                    env=idle_env, timeout_sec=30)
+                if idle_patch.return_code != 0:
+                    raise RuntimeError('native_dsh_idle_timeout_patch_failed')
         # Check the organizer-managed execution snapshot. The manifest accepts a
         # compatibility window, while the E2B snapshot remains immutable until
         # a separately verified runtime bundle is published. No npm/pip
