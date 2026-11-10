@@ -17,9 +17,9 @@ import stat
 import tarfile
 import time
 
-MAX_EXPANDED = 128 * 1024 * 1024
-MAX_COMPRESSED = 64 * 1024 * 1024
-MAX_ENTRIES = 10_000
+MAX_EXPANDED = 192 * 1024 * 1024
+MAX_COMPRESSED = 96 * 1024 * 1024
+MAX_ENTRIES = 20_000
 PACK_ERRORS = frozenset({
     "native_pack_entry_limit", "native_pack_expanded_limit",
     "native_pack_compressed_limit", "native_pack_unsafe_entry",
@@ -201,7 +201,7 @@ def remote_pack(sandbox, command, python, module, root, target, *, deadline,
     remaining = deadline - clock()
     if remaining <= 0:
         raise ValueError("native_pack_deadline")
-    job_timeout = min(60, max(1, int(remaining - 5)))
+    job_timeout = min(120, max(1, int(remaining - 5)))
     argv = [python, module, "--root", root, "--target", target, "--job-id", job_id, "--timeout", str(job_timeout)]
     launch = "nohup " + shlex.join(argv) + " >" + shlex.quote(target + ".pack.log") + " 2>&1 </dev/null &"
     try:
@@ -245,7 +245,7 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=60)
     args = parser.parse_args()
-    if not 1 <= args.timeout <= 60:
+    if not 1 <= args.timeout <= 120:
         raise SystemExit(2)
     try:
         pack_job(args.root, args.target, args.job_id, timeout=args.timeout)

@@ -4,7 +4,12 @@ import tarfile
 from pathlib import Path
 
 
-def validate_archive(data, *, expanded_limit=128 * 1024 * 1024, metadata_limit=64 * 1024):
+MAX_ARCHIVE_BYTES = 96 * 1024 * 1024
+MAX_EXPANDED_BYTES = 192 * 1024 * 1024
+MAX_ENTRIES = 20_000
+
+
+def validate_archive(data, *, expanded_limit=MAX_EXPANDED_BYTES, metadata_limit=64 * 1024):
     """Bound the *entire* tar stream before tarfile interprets extended headers.
 
     These are diagnostic transfer guards, not the formal competition policy.
@@ -19,7 +24,7 @@ def validate_archive(data, *, expanded_limit=128 * 1024 * 1024, metadata_limit=6
     if (type(expanded_limit) is not int or expanded_limit < 1024
             or type(metadata_limit) is not int or metadata_limit < 1):
         raise ValueError("invalid evidence preflight limits")
-    if not isinstance(data, bytes) or len(data) > 64 * 1024 * 1024:
+    if not isinstance(data, bytes) or len(data) > MAX_ARCHIVE_BYTES:
         raise ValueError("evidence archive too large")
     if not data.startswith(b"\x1f\x8b") and (len(data) < 1024 or len(data) % 512):
         raise ValueError("unsupported evidence archive format")
@@ -80,7 +85,7 @@ def validate_archive(data, *, expanded_limit=128 * 1024 * 1024, metadata_limit=6
                 except (tarfile.HeaderError, ValueError, OverflowError):
                     raise ValueError("unsupported evidence archive format") from None
                 headers += 1
-                if headers > 10000:
+                if headers > MAX_ENTRIES:
                     raise ValueError("too many evidence entries")
                 if header.size < 0 or header.type not in ordinary | extended:
                     raise ValueError("unsafe evidence entry")
@@ -117,7 +122,7 @@ def validate_archive(data, *, expanded_limit=128 * 1024 * 1024, metadata_limit=6
             total = 0
             seen = set()
             for index, member in enumerate(tf):
-                if index >= 10000:
+                if index >= MAX_ENTRIES:
                     raise ValueError("too many evidence entries")
                 p = Path(member.name)
                 if (p.is_absolute() or ".." in p.parts or "\0" in member.name

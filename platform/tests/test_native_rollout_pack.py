@@ -51,6 +51,34 @@ def test_pack_round_trip_matches_validator_and_publishes_only_completed_job(tmp_
     assert not Path(str(target) + ".partial").exists()
 
 
+def test_rollout_prune_drops_duplicate_qsim_results_and_scratch(tmp_path, monkeypatch):
+    root = tmp_path / "trial"
+    qsim = root / "artifacts/qsim_logs/public_job_results"
+    verifier = root / "verifier/artifacts/public_job_results"
+    qsim.mkdir(parents=True)
+    verifier.mkdir(parents=True)
+    (qsim / "job.json").write_text('{"duplicate":true}')
+    (verifier / "job.json").write_text('{"duplicate":true}')
+    for name in ("experiment_log.jsonl", "final_answer.json"):
+        (root / "artifacts/qsim_logs" / name).write_text(name)
+        (root / "verifier/artifacts" / name).write_text(name)
+    cache = root / "artifacts/submission_artifacts/__pycache__"
+    cache.mkdir(parents=True)
+    (cache / "module.pyc").write_text("scratch")
+    (root / "agent").mkdir()
+    (root / "agent/native-cli.jsonl").write_text('{"keep":true}')
+    monkeypatch.setattr(sys, "argv", ["prune", str(root)])
+    exec(bridge.ROLLOUT_PRUNE, {})
+    assert not qsim.exists()
+    assert (verifier / "job.json").is_file()
+    assert (root / "verifier/artifacts/experiment_log.jsonl").is_file()
+    assert (root / "verifier/artifacts/final_answer.json").is_file()
+    assert not (root / "artifacts/qsim_logs/experiment_log.jsonl").exists()
+    assert not (root / "artifacts/qsim_logs/final_answer.json").exists()
+    assert not cache.exists()
+    assert (root / "agent/native-cli.jsonl").is_file()
+
+
 @pytest.mark.parametrize("kind", ["symlink_file", "symlink_directory", "fifo"])
 def test_pack_rejects_special_entries_without_publishing_archive(tmp_path, kind):
     source, target = fixture_tree(tmp_path)
@@ -164,7 +192,7 @@ def test_remote_uncertain_launch_has_one_shared_deadline_and_no_relaunch(monkeyp
 
 
 @pytest.mark.parametrize("change", [{"job_id": "0" * 64}, {"compressed_size": pack.MAX_COMPRESSED+1},
-                                   {"header_count": 10001}, {"status": "running"}, {"sha256": "untrusted"}])
+                                   {"header_count": pack.MAX_ENTRIES+1}, {"status": "running"}, {"sha256": "untrusted"}])
 def test_remote_completion_marker_must_be_bound_and_bounded(monkeypatch, change):
     value = json.loads(completed_marker("/input", "/output"))
     value.update(change)

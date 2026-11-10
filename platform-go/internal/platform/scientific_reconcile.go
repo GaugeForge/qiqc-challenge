@@ -63,7 +63,7 @@ func (s *Store) nativeStagedUploadFor(q queryer, runID string, attempt int) (*Pe
 	}
 	archive := filepath.Join(cache, "rollout.tar.gz")
 	info, err := os.Lstat(archive)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > 64*1024*1024 {
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 128*1024*1024 {
 		return nil, errors.New("native staged archive invalid")
 	}
 	digest, _, err := rollout.Digest(archive)
