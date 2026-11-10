@@ -66,6 +66,12 @@ def make_harbor_job_config(spec, control_dir, jobs_dir):
     }
 
 
+def trial_result_paths(job_dir):
+    """Return immediate trial result.json paths, never nested submission files."""
+    root = Path(job_dir)
+    return sorted(p for p in root.glob("*/result.json") if p.is_file())
+
+
 def read_scoped_token(path):
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
     try:
@@ -142,9 +148,7 @@ async def run(spec):
         (output / 'native-harbor-job.json').write_text(
             json.dumps(job_result.model_dump(mode='json'), indent=2)
         )
-        trial_results = sorted(
-            p for p in job.job_dir.rglob('result.json') if p.parent != job.job_dir
-        )
+        trial_results = trial_result_paths(job.job_dir)
         if len(trial_results) != 1:
             raise RuntimeError('native_harbor_trial_result_missing_or_ambiguous')
         trial_path = trial_results[0].parent
