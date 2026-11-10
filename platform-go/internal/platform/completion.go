@@ -86,7 +86,7 @@ func (s *Store) finalize(tx *sql.Tx, bid string) error {
 		}
 		return nil
 	}
-	rows, err := tx.Query("SELECT state,reward,seconds,object_key,object_sha FROM runs WHERE batch_id=?", bid)
+	rows, err := tx.Query("SELECT state,reward,seconds,object_key,object_sha,COALESCE(error,'') FROM runs WHERE batch_id=?", bid)
 	if err != nil {
 		return err
 	}
@@ -94,35 +94,52 @@ func (s *Store) finalize(tx *sql.Tx, bid string) error {
 	valid := true
 	durations := []string{}
 	for rows.Next() {
-		var st string
+		var st, reason string
 		var r sql.NullInt64
 		var sec, key, sha sql.NullString
-		if err = rows.Scan(&st, &r, &sec, &key, &sha); err != nil {
+		if err = rows.Scan(&st, &r, &sec, &key, &sha, &reason); err != nil {
 			rows.Close()
 			return err
 		}
 		total++
-		if st != "completed" || !r.Valid || (r.Int64 != 0 && r.Int64 != 1) || !sec.Valid || !key.Valid || !sha.Valid || key.String == "" || sha.String == "" {
+		switch st {
+		case "completed":
+			if !r.Valid || (r.Int64 != 0 && r.Int64 != 1) || !sec.Valid || !key.Valid || !sha.Valid || key.String == "" || sha.String == "" {
+				valid = false
+				continue
+			}
+			passed += int(r.Int64)
+			durations = append(durations, sec.String)
+		case "cancelled":
+			// A team-cancelled task is an intentional forfeit. It contributes
+			// zero to the pass count and has no runtime/evidence to average.
+			if reason != "cancelled:operator" {
+				valid = false
+			}
+		default:
 			valid = false
 		}
-		passed += int(r.Int64)
-		durations = append(durations, sec.String)
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
 		return err
 	}
+	if !valid {
+		return nil
+	}
 	expected, err := batchTaskCount(tx, bid, kind, mode)
 	if err != nil {
 		return err
 	}
-	if !valid || total != expected {
+	if total != expected {
 		return nil
 	}
-	mean, err := MeanSeconds(durations)
-	if err != nil {
-		return err
+	mean := "0.000000"
+	if len(durations) > 0 {
+		if mean, err = MeanSeconds(durations); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.Exec("UPDATE batches SET status='completed',passed=?,mean=? WHERE id=?", passed, mean, bid); err != nil {
 		return err

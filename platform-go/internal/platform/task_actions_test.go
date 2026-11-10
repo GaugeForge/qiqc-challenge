@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -114,6 +115,86 @@ func TestClaimDispatchesQueuedSiblingWhileBatchAttention(t *testing.T) {
 	}
 }
 
+func TestCancellingLastOutstandingTaskCompletesBatch(t *testing.T) {
+	s := testStore(t)
+	token, bid := taskActionFixture(t, s, "attention", "completed", "completed", "completed", "completed")
+	for ordinal := 1; ordinal < 5; ordinal++ {
+		if _, err := s.DB.Exec("UPDATE runs SET reward=1,seconds='100.000000',object_key=?,object_sha=? WHERE batch_id=? AND ordinal=?", "runs/"+id()+".tar.gz", strings.Repeat("b", 64), bid, ordinal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.CancelTask(token, bid, 0, "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	var status, mean string
+	var passed int
+	if err := s.DB.QueryRow("SELECT status,passed,COALESCE(mean,'') FROM batches WHERE id=?", bid).Scan(&status, &passed, &mean); err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" || passed != 4 || mean != "100.000000" {
+		t.Fatalf("cancelled forfeit did not complete batch: status=%s passed=%d mean=%s", status, passed, mean)
+	}
+	if runState(t, s, bid, 0) != "cancelled" {
+		t.Fatal("cancelled task was resurrected")
+	}
+}
+
+func TestCancellingAllTasksCompletesZeroScoreBatch(t *testing.T) {
+	s := testStore(t)
+	token, bid := taskActionFixture(t, s, "attention", "attention", "attention", "attention", "attention")
+	for ordinal := 0; ordinal < 5; ordinal++ {
+		if err := s.CancelTask(token, bid, ordinal, "127.0.0.1"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var status, mean string
+	var passed int
+	if err := s.DB.QueryRow("SELECT status,passed,COALESCE(mean,'') FROM batches WHERE id=?", bid).Scan(&status, &passed, &mean); err != nil {
+		t.Fatal(err)
+	}
+	if status != "completed" || passed != 0 || mean != "0.000000" {
+		t.Fatalf("all-cancelled batch did not close: status=%s passed=%d mean=%s", status, passed, mean)
+	}
+}
+
+func TestCancellingTaskWithRunningSiblingKeepsBatchOpen(t *testing.T) {
+	s := testStore(t)
+	token, bid := taskActionFixture(t, s, "attention", "running", "completed", "completed", "completed")
+	if err := s.CancelTask(token, bid, 0, "127.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	if err := s.DB.QueryRow("SELECT status FROM batches WHERE id=?", bid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status != "testing" {
+		t.Fatalf("batch with a running sibling must stay open, got %s", status)
+	}
+}
+
+func TestPlatformCancelledRunDoesNotCloseBatch(t *testing.T) {
+	s := testStore(t)
+	_, bid := taskActionFixture(t, s, "cancelled", "completed", "completed", "completed", "completed")
+	for ordinal := 1; ordinal < 5; ordinal++ {
+		if _, err := s.DB.Exec("UPDATE runs SET reward=1,seconds='100.000000',object_key=?,object_sha=? WHERE batch_id=? AND ordinal=?", "runs/"+id()+".tar.gz", strings.Repeat("b", 64), bid, ordinal); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.DB.Exec("UPDATE runs SET error='platform:reconciled' WHERE batch_id=? AND ordinal=0", bid); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.write(func(tx *sql.Tx) error { return s.finalize(tx, bid) }); err != nil {
+		t.Fatal(err)
+	}
+	var status string
+	if err := s.DB.QueryRow("SELECT status FROM batches WHERE id=?", bid).Scan(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status == "completed" {
+		t.Fatal("platform reconciliation must not be treated as a team forfeit")
+	}
+}
+
 func TestTaskCancelRejectsUnconfirmedRemoteResource(t *testing.T) {
 	s := testStore(t)
 	token, bid := taskActionFixture(t, s, "attention")
@@ -130,7 +211,9 @@ func TestTaskCancelRejectsUnconfirmedRemoteResource(t *testing.T) {
 
 func TestPreflightReceiptAllowsCancelWithoutRemoteResource(t *testing.T) {
 	s := testStore(t)
-	token, bid := taskActionFixture(t, s, "attention")
+	// A second attention task keeps finalize from looking up the scientific
+	// catalog, which this fixture intentionally does not configure.
+	token, bid := taskActionFixture(t, s, "attention", "attention")
 	if _, err := s.DB.Exec("UPDATE batches SET mode='scientific' WHERE id=?", bid); err != nil {
 		t.Fatal(err)
 	}
