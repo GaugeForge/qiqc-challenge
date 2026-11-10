@@ -9,7 +9,7 @@ from types import SimpleNamespace
 import pytest
 from native_compose_contract import validate_spec,submission_manifest,validate_main_container
 from native_compose_template import archive_bytes
-from native_compose_runner import make_trial_config,read_scoped_token
+from native_compose_runner import make_trial_config,read_scoped_token,trial_result_paths
 
 
 def spec(tmp_path):
@@ -517,3 +517,23 @@ def test_unbound_or_unsafe_profile_identity_rejected(tmp_path,change):
     value=spec(tmp_path);profile=approved_profile();change(profile)
     value['candidate_identity'].update(model_id=profile['model'],diagnostic_model='',provider_profile=profile)
     with pytest.raises(ValueError,match='profile'):validate_spec(value)
+
+
+def test_trial_result_selection_ignores_nested_submission_result(tmp_path):
+    job = tmp_path / 'job'
+    trial = job / 'trial'
+    nested = trial / 'artifacts' / 'submission_artifacts' / 'public_output'
+    nested.mkdir(parents=True)
+    (job / 'result.json').write_text('{}')
+    (trial / 'result.json').write_text('{}')
+    (nested / 'result.json').write_text('{}')
+    assert trial_result_paths(job) == [trial / 'result.json']
+
+
+def test_trial_result_selection_rejects_multiple_trials(tmp_path):
+    job = tmp_path / 'job'
+    for name in ('one', 'two'):
+        trial = job / name
+        trial.mkdir(parents=True)
+        (trial / 'result.json').write_text('{}')
+    assert len(trial_result_paths(job)) == 2
